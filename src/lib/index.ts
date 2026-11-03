@@ -9,6 +9,7 @@ export { default as FloodOverlay } from './components/FloodOverlay.svelte';
 export { default as Link } from './components/Link.svelte';
 export { default as LineText } from './components/LineText.svelte';
 export { default as Indent } from './components/Indent.svelte';
+export { default as Image } from './components/Image.svelte';
 export { default as Document } from './components/scroll/vertical/Document.svelte';
 export { default as Camera } from './components/scroll/vertical/Camera.svelte';
 export { default as ScrollIndicator } from './components/scroll/vertical/ScrollIndicator.svelte';

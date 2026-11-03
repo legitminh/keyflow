@@ -3,6 +3,8 @@
     Keyflow,
     Document,
     LineText,
+    Indent,
+    Image,
     ButtonPositional,
     Link,
     ThemeToggle,
@@ -12,6 +14,11 @@
   import '../../src/lib/styles.css';
 
   let count = $state(0);
+  const demoImage =
+    'data:image/svg+xml,' +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120"><rect width="240" height="120" fill="#777"/><path d="M0 60h240M120 0v120" stroke="#fff" stroke-width="2"/></svg>'
+    );
 </script>
 
 <Keyflow>
@@ -36,6 +43,10 @@
     {#each Array.from({ length: 30 }, (_, i) => i) as i}
       <LineText><p>Section {i + 1}: content stays aligned to the grid.</p></LineText>
     {/each}
+    <Indent>
+      <LineText>Grid-based image layout</LineText>
+      <Image href={demoImage} alt="Grid layout example" maxWidth="100%" maxHeight="30vh" />
+    </Indent>
     <LineText><h2 id="destination">destination</h2></LineText>
     <LineText><Link href="#">back to top</Link></LineText>
   </Document>

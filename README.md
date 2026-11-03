@@ -24,10 +24,10 @@ pnpm build
 pnpm pack
 ```
 
-Copy `legitminh-keyflow-0.1.0.tgz` into the consuming project's `vendor/` directory, then install it:
+Copy `legitminh-keyflow-0.1.1.tgz` into the consuming project's `vendor/` directory, then install it:
 
 ```sh
-pnpm add ./vendor/legitminh-keyflow-0.1.0.tgz
+pnpm add ./vendor/legitminh-keyflow-0.1.1.tgz
 ```
 
 Commit that archive and the consumer's lockfile so a clean checkout needs neither this source repository nor private registry access.
@@ -62,6 +62,24 @@ Commit that archive and the consumer's lockfile so a clean checkout needs neithe
 `ButtonPositional` registers shortcuts for visible controls and orders them by position. `Button` accepts an explicit `priority` for persistent controls. Shortcut sequences grow as the number of controls increases; Escape clears partial input. Typing in inputs, textareas, selects, or editable content does not trigger shortcuts. Modifier shortcuts remain available to the browser.
 
 `Link` waits for the color flood before assigning `window.location.href`, so it works with normal documents and full-page navigation. For client-side routing, pass your router callback to `ButtonPositional` and await `flood_covered()` before navigation.
+
+## Layout components
+
+`LineText`, `Indent`, and `Image` are public package exports. `LineText` limits text to 32 grid cells with quarter-cell side margins and registers the block for scroll-aware paging. `Indent` adds one grid cell of left padding. Both follow the current zoom setting.
+
+```svelte
+<script lang="ts">
+  import { LineText, Indent, Image } from '@legitminh/keyflow';
+</script>
+
+<LineText>Introduction</LineText>
+<Indent>
+  <LineText>Indented content</LineText>
+  <Image href="/images/project.jpg" alt="Project screenshot" maxWidth="100%" />
+</Indent>
+```
+
+`Image` keeps the original defaults: automatic width and height, `maxWidth="75vw"`, `maxHeight="75vh"`, and `fit="contain"`. Use `width` and `height` (CSS lengths or pixel numbers), `maxWidth`, `maxHeight`, and `fit` to adapt the layout. Native image attributes such as `loading`, `srcset`, `sizes`, and `class` are forwarded. Supply `href` for the image source and `alt` for accessible text. Images register with `must_view` so lockstep paging avoids splitting them when possible.
 
 ## Configure the flow
 
