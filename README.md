@@ -4,6 +4,14 @@ A reusable interaction system extracted from minh.website: keyboard-routed butto
 
 Built for **Svelte 5**, with no SvelteKit or site-content dependency. Mount one `Keyflow` root and one `Document` per page. State and preferences are shared across that application; independent embedded instances are not supported. The optional stylesheet sets document-wide typography, colors, and overflow for this full-page user flow.
 
+## Add to your project
+```sh
+pnpm add https://github.com/YOUR_USERNAME/keyflow/releases/download/v0.1.2/legitminh-keyflow-0.1.2.tgz
+
+pnpm check
+pnpm build
+```
+
 ## Try it
 
 Use Node 24 and pnpm 9:
