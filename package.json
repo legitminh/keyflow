@@ -1,0 +1,47 @@
+{
+  "name": "@legitminh/keyflow",
+  "version": "0.1.0",
+  "description": "A keyboard-first, grid-based interaction system for Svelte 5 websites.",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "svelte": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "build": "svelte-package",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "node --test tests/*.test.mjs",
+    "prepack": "pnpm build",
+    "demo": "vite",
+    "test:browser": "playwright test"
+  },
+  "peerDependencies": {
+    "svelte": "^5.56.10"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@sveltejs/package": "^2.5.0",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@types/node": "^22",
+    "svelte": "^5.56.10",
+    "svelte-check": "^4.6.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

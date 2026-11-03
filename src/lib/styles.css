@@ -1,0 +1,52 @@
+:root {
+  --font-geist-mono: 'Geist Mono', monospace;
+
+  --min-box: 48px;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --primary: #000000;
+  --secondary: #000000;
+  --background: #ffffff;
+  --tertiary: hsl(0, 0%, 50%);
+
+  justify-content: left;
+  align-items: left;
+  text-align: left;
+  background-color: var(--background);
+  color: var(--primary);
+  word-break: break-word;
+}
+/* 
+.char {
+    display: inline-flex;
+    width: var(--min-box);
+    height: var(--min-box);
+
+    align-items: center;
+    justify-content: center;
+} */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-mono);
+  line-height: var(--min-box);
+  font-size: calc(var(--min-box) * 0.8);
+  overflow: hidden;
+}
+
+button {
+  font-family: var(--font-mono);
+  color: var(--primary);
+  border: none;
+  /* box-sizing: border-box;  */
+  line-height: var(--min-box);
+  padding: 0;
+  font-size: calc(var(--min-box) * 0.8);
+  background: none;
+  align-items: left;
+  justify-content: left;
+  text-align: left;
+  cursor: pointer;
+}
