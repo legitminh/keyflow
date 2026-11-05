@@ -5,7 +5,8 @@
  * It takes in the following props:
  * - children: The content to be rendered inside the button.
  * - on_close: A function to be called when the button is clicked.
- * - priority: The priority of the input token (default is 0).
+ * - priority: Explicit input-token priority; omit to order by position.
+ * Remains registered while offscreen and unregisters when unmounted.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';

@@ -19,7 +19,8 @@ export interface KeyflowOptions {
   minBox?: number;
   themeId?: number;
   themes?: Theme[];
-  keys?: string[];
+  /** Ordered shortcut alphabet. Accepts key_presets or a custom array. */
+  keys?: readonly string[];
   lockstep?: boolean;
 }
 

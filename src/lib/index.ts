@@ -14,6 +14,7 @@ export { default as Document } from './components/scroll/vertical/Document.svelt
 export { default as Camera } from './components/scroll/vertical/Camera.svelte';
 export { default as ScrollIndicator } from './components/scroll/vertical/ScrollIndicator.svelte';
 export { initializeKeyflow, type KeyflowOptions } from './runtime.js';
+export { key_presets } from './key-presets.js';
 export { min_box } from './stores/layout.svelte.js';
 export { lockstep_scrolling } from './stores/scroll.svelte.js';
 export {

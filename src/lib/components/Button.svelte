@@ -1,5 +1,5 @@
 <!-- 
-  button that displays key route and only exist if visible
+  Persistent button with a displayed shortcut. Omitting priority uses positional ordering.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';

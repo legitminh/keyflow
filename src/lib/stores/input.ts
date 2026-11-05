@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 
 import { get } from 'svelte/store';
 import { insert_sorted } from '../utils/iterable.js';
+import { key_presets } from '../key-presets.js';
 
 // below: list of key routes for each input token, where each key route is a list of keys that can be pressed to activate the input token
 export const _map_key_route = writable<Map<InputToken, string[]>>(new Map());
@@ -58,24 +59,7 @@ export type InputToken = {
   on_close(): void; // action trigger when token is deactivated
 };
 
-export const _available_keys = writable<string[]>([
-  '1',
-  '2',
-  '3',
-  '4',
-  'q',
-  'w',
-  'e',
-  'r',
-  'a',
-  's',
-  'd',
-  'f',
-  'z',
-  'x',
-  'c',
-  'v'
-]);
+export const _available_keys = writable<string[]>([...key_presets.default]);
 
 const compare_input_token = (a: InputToken, b: InputToken) => a.priority - b.priority;
 
@@ -186,7 +170,7 @@ const base_diffusion_s_endian = (initial: number, base: number) => {
 };
 
 /** Change the shortcut alphabet and recalculate every displayed route. */
-export function set_available_keys(keys: string[]) {
+export function set_available_keys(keys: readonly string[]) {
   const normalized = keys.map((key) => key.toLowerCase());
   if (
     normalized.length < 2 ||

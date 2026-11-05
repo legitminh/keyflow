@@ -6,7 +6,7 @@ Built for **Svelte 5**, with no SvelteKit or site-content dependency. Mount one 
 
 ## Add to your project
 ```sh
-pnpm add https://github.com/YOUR_USERNAME/keyflow/releases/download/v0.1.2/legitminh-keyflow-0.1.2.tgz
+pnpm add https://github.com/legitminh/keyflow/releases/download/v0.1.2/legitminh-keyflow-0.1.2.tgz
 
 pnpm check
 pnpm build
@@ -25,17 +25,17 @@ The standalone Vite demo is in `examples/demo`. It includes shortcut controls, a
 
 ## Use in another website
 
-The package is local and has not been published to npm. Build an installable archive:
+Install the archive from GitHub Releases using the command above; the package is not published to npm. To build an installable archive locally:
 
 ```sh
 pnpm build
 pnpm pack
 ```
 
-Copy `legitminh-keyflow-0.1.1.tgz` into the consuming project's `vendor/` directory, then install it:
+Copy `legitminh-keyflow-0.1.2.tgz` into the consuming project's `vendor/` directory, then install it:
 
 ```sh
-pnpm add ./vendor/legitminh-keyflow-0.1.1.tgz
+pnpm add ./vendor/legitminh-keyflow-0.1.2.tgz
 ```
 
 Commit that archive and the consumer's lockfile so a clean checkout needs neither this source repository nor private registry access.
@@ -67,7 +67,25 @@ Commit that archive and the consumer's lockfile so a clean checkout needs neithe
 </Keyflow>
 ```
 
-`ButtonPositional` registers shortcuts for visible controls and orders them by position. `Button` accepts an explicit `priority` for persistent controls. Shortcut sequences grow as the number of controls increases; Escape clears partial input. Typing in inputs, textareas, selects, or editable content does not trigger shortcuts. Modifier shortcuts remain available to the browser.
+Choose shortcut registration and ordering independently:
+
+| Component | Priority | Shortcut active offscreen? |
+| --- | --- | --- |
+| `Button` / `Interactable`, omit `priority` | Automatic positional ordering | Yes |
+| `Button` / `Interactable`, set `priority` | Explicit numeric ordering (lower first) | Yes |
+| `ButtonPositional` / `InteractablePositional` | Automatic positional ordering | No |
+
+For **persistent positional** controls, use `Button` or `Interactable` without a `priority` prop. Their shortcuts remain registered while offscreen and are removed when the component unmounts. `Button` displays the assigned shortcut; `Interactable` wraps custom content without adding a shortcut label.
+
+```svelte
+<Button on_close={handleClick}>Persistent positional button</Button>
+<Interactable on_close={handleClick}>Custom persistent positional control</Interactable>
+<Button priority={0} on_close={handleClick}>Persistent with explicit priority</Button>
+```
+
+Import these components from `@legitminh/keyflow`. Persistence keeps the shortcut active; it does not pin the control onscreen or guarantee an unchanged shortcut as other controls register or reorder.
+
+Shortcut sequences grow as the number of registered controls increases; Escape clears partial input. Typing in inputs, textareas, selects, or editable content does not trigger shortcuts. Modifier shortcuts remain available to the browser.
 
 `Link` waits for the color flood before assigning `window.location.href`, so it works with normal documents and full-page navigation. For client-side routing, pass your router callback to `ButtonPositional` and await `flood_covered()` before navigation.
 
@@ -127,7 +145,46 @@ Pass initial options to `Keyflow`. They are read on mount; saved session prefere
 </Keyflow>
 ```
 
-The default alphabet is `1234qwerasdfzxcv`. The original site's `dark` and `light` toggle labels are preserved; supply named themes to change them. `ThemeToggle` cycles all configured themes. Grid size is measured in pixels. Storage failures fall back to in-memory preferences.
+### Shortcut key sets
+
+`options.keys` sets the ordered pool of keys used to assign shortcuts automatically. Use an exported preset or a custom array:
+
+```svelte
+<script lang="ts">
+  import { Keyflow, key_presets } from '@legitminh/keyflow';
+</script>
+
+<Keyflow options={{ keys: key_presets.letters }}>
+  <!-- Document and content -->
+</Keyflow>
+```
+
+| Preset | Keys, in assignment order | Count |
+| --- | --- | --- |
+| `key_presets.default` | `1234qwerasdfzxcv` | 16 |
+| `key_presets.letters` | `abcdefghijklmnopqrstuvwxyz` | 26 |
+| `key_presets.alphanumeric` | `abcdefghijklmnopqrstuvwxyz0123456789` | 36 |
+| `key_presets.numeric` | `0123456789` | 10 |
+
+Omitting `keys` uses the original 16-key default. The letters and alphanumeric presets use Latin letters A–Z; key matching is case-insensitive. The presets are read-only arrays.
+
+For custom keys, pass an array such as `keys: ['a', 's', 'd', 'f']`. Supply at least two unique single-character keys; values are normalized to lowercase, and invalid configurations throw `RangeError`. Array order controls key assignment. When there are more registered controls than keys, Keyflow assigns longer sequences automatically.
+
+Options are read on mount. To change the key set while running, use the existing public setter:
+
+```ts
+import { key_presets, set_available_keys } from '@legitminh/keyflow';
+
+set_available_keys(key_presets.numeric);
+// Or use a custom ordered pool:
+set_available_keys(['j', 'k', 'l', ';']);
+```
+
+Changing the pool clears partial keyboard input and recalculates all displayed shortcuts.
+
+### Theme and layout settings
+
+The original site's `dark` and `light` toggle labels are preserved; supply named themes to change them. `ThemeToggle` cycles all configured themes. Grid size is measured in pixels. Storage failures fall back to in-memory preferences.
 
 Use the exported reactive state for settings controls:
 
