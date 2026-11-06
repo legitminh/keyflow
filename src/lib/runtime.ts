@@ -1,17 +1,15 @@
-import { get } from 'svelte/store';
 import { min_box } from './stores/layout.svelte.js';
 import { lockstep_scrolling } from './stores/scroll.svelte.js';
 import { themes, set_theme_id, type Theme } from './stores/theme.svelte.js';
 import { readPreference, setStoragePrefix } from './storage.js';
 import {
-  _list_input_token,
-  _list_key_strokes,
-  _available_keys,
   add_key_strokes,
   reset_key_strokes,
-  base_conversion_s_endian,
+  take_input_action,
   set_available_keys
 } from './stores/input.js';
+import { static_input } from './stores/static-input.js';
+import { detect_shortcut_platform, type ShortcutPlatform } from './shortcuts.js';
 
 export interface KeyflowOptions {
   /** Namespace for session preferences. Use an empty string for legacy site keys. */
@@ -21,12 +19,15 @@ export interface KeyflowOptions {
   themes?: Theme[];
   /** Ordered shortcut alphabet. Accepts key_presets or a custom array. */
   keys?: readonly string[];
+  /** Auto-detected by default; also controls the portable Ctrl/Mod mapping and labels. */
+  platform?: ShortcutPlatform | 'auto';
   lockstep?: boolean;
 }
 
 /** Initialize one full-page Keyflow application. Returns listener cleanup. */
 export function initializeKeyflow(options: KeyflowOptions = {}) {
   if (typeof window === 'undefined') return () => {};
+  static_input.configure(options.platform && options.platform !== 'auto' ? options.platform : detect_shortcut_platform());
   setStoragePrefix(options.storagePrefix ?? 'keyflow:');
   if (options.themes) {
     if (!options.themes.length) throw new RangeError('At least one theme is required');
@@ -52,37 +53,44 @@ export function initializeKeyflow(options: KeyflowOptions = {}) {
           (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
       );
   const onKeyDown = (event: KeyboardEvent) => {
-    if (
-      event.repeat ||
-      event.isComposing ||
-      event.ctrlKey ||
-      event.metaKey ||
-      event.altKey ||
-      isEditing(event)
-    )
+    if (event.defaultPrevented || event.isComposing || isEditing(event)) return resetInput();
+    if (static_input.keydown(event)) {
+      event.preventDefault();
+      reset_key_strokes();
       return;
+    }
+    if (event.repeat) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return reset_key_strokes();
     if (event.key === 'Escape') return reset_key_strokes();
     add_key_strokes(event.key);
   };
   const onKeyUp = (event: KeyboardEvent) => {
-    if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey || isEditing(event))
+    if (event.defaultPrevented || event.isComposing || isEditing(event)) return resetInput();
+    if (static_input.keyup(event)) {
+      event.preventDefault();
       return;
-    if (!get(_available_keys).includes(event.key.toLowerCase())) return;
-    const strokes = get(_list_key_strokes);
-    const tokens = get(_list_input_token);
-    const base = get(_available_keys).length;
-    if (!strokes.length || base ** strokes.length < tokens.length) return;
-    const action = tokens[base_conversion_s_endian(strokes, base)]?.on_close;
-    reset_key_strokes();
-    action?.();
+    }
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const action = take_input_action(event.key);
+    if (!action) return;
+    action();
   };
+  const resetInput = () => {
+    static_input.reset();
+    reset_key_strokes();
+  };
+  const onVisibilityChange = () => { if (document.hidden) resetInput(); };
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
-  window.addEventListener('blur', reset_key_strokes);
+  window.addEventListener('blur', resetInput);
+  window.addEventListener('focusin', resetInput);
+  document.addEventListener('visibilitychange', onVisibilityChange);
   return () => {
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
-    window.removeEventListener('blur', reset_key_strokes);
-    reset_key_strokes();
+    window.removeEventListener('blur', resetInput);
+    window.removeEventListener('focusin', resetInput);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    resetInput();
   };
 }

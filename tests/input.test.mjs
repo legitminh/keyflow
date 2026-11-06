@@ -88,3 +88,44 @@ test('switching presets recalculates existing routes and clears partial input', 
   assert.deepEqual(get(input.list_key_strokes), []);
   assert.deepEqual(tokens.map((t) => get(input.map_key_route).get(t)), [['0'], ['1']]);
 });
+
+test('typing uses cached routes and indices instead of rebuilding maps', () => {
+  const tokens = [token(0), token(1), token(2)];
+  tokens.forEach(input.add_input_token);
+  const numeric = get(input.map_numeric_route);
+  const labels = get(input.map_key_route);
+  input.add_key_strokes('a');
+  assert.equal(input.take_input_action('a'), undefined);
+  input.add_key_strokes('s');
+  assert.equal(input.take_input_action('s'), tokens[2].on_close);
+  input.reset_key_strokes();
+  assert.equal(get(input.map_numeric_route), numeric);
+  assert.equal(get(input.map_key_route), labels);
+});
+
+test('exhausted and one-key effective pools never create invalid or colliding routes', () => {
+  const owner = {};
+  const a = token(0), b = token(1);
+  input.add_input_token(a);
+  input.reserve_input_keys(owner, ['a']);
+  assert.deepEqual(get(input.map_key_route).get(a), ['s']);
+  input.add_input_token(b);
+  assert.equal(get(input.map_key_route).size, 0);
+  input.reserve_input_keys(owner, ['a', 's']);
+  assert.equal(get(input.map_key_route).size, 0);
+  input.add_key_strokes('a');
+  assert.equal(input.take_input_action('a'), undefined);
+  input.reserve_input_keys(owner, []);
+  assert.deepEqual(get(input.map_key_route).get(a), ['a']);
+  assert.deepEqual(get(input.map_key_route).get(b), ['s']);
+});
+
+test('an unused completed automatic route is cleared before the next attempt', () => {
+  const tokens = [token(0), token(1), token(2)];
+  tokens.forEach(input.add_input_token);
+  input.add_key_strokes('s'); input.add_key_strokes('s');
+  assert.equal(input.take_input_action('s'), undefined);
+  assert.deepEqual(get(input.list_key_strokes), []);
+  input.add_key_strokes('a'); input.add_key_strokes('a');
+  assert.equal(input.take_input_action('a'), tokens[0].on_close);
+});

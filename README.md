@@ -6,7 +6,7 @@ Built for **Svelte 5**, with no SvelteKit or site-content dependency. Mount one 
 
 ## Add to your project
 ```sh
-pnpm add https://github.com/legitminh/keyflow/releases/download/v0.1.2/legitminh-keyflow-0.1.2.tgz
+pnpm add https://github.com/legitminh/keyflow/releases/download/v0.2.0/legitminh-keyflow-0.2.0.tgz
 
 pnpm check
 pnpm build
@@ -32,10 +32,10 @@ pnpm build
 pnpm pack
 ```
 
-Copy `legitminh-keyflow-0.1.2.tgz` into the consuming project's `vendor/` directory, then install it:
+Copy `legitminh-keyflow-0.2.0.tgz` into the consuming project's `vendor/` directory, then install it:
 
 ```sh
-pnpm add ./vendor/legitminh-keyflow-0.1.2.tgz
+pnpm add ./vendor/legitminh-keyflow-0.2.0.tgz
 ```
 
 Commit that archive and the consumer's lockfile so a clean checkout needs neither this source repository nor private registry access.
@@ -85,9 +85,62 @@ For **persistent positional** controls, use `Button` or `Interactable` without a
 
 Import these components from `@legitminh/keyflow`. Persistence keeps the shortcut active; it does not pin the control onscreen or guarantee an unchanged shortcut as other controls register or reorder.
 
-Shortcut sequences grow as the number of registered controls increases; Escape clears partial input. Typing in inputs, textareas, selects, or editable content does not trigger shortcuts. Modifier shortcuts remain available to the browser.
+Shortcut sequences grow as the number of registered controls increases; Escape clears partial input. Typing in inputs, textareas, selects, or editable content does not trigger shortcuts. Unregistered modifier shortcuts remain available to the browser.
 
-`Link` waits for the color flood before assigning `window.location.href`, so it works with normal documents and full-page navigation. For client-side routing, pass your router callback to `ButtonPositional` and await `flood_covered()` before navigation.
+## Static shortcuts
+
+`StaticInteractable` fixes an exact input sequence to custom clickable content. `StaticButton` adds the same entered/pending shortcut display used by automatic buttons, with optional `flood` animation. Both remain registered offscreen until unmounted.
+
+```svelte
+<script lang="ts">
+  import { StaticButton, StaticInteractable } from '@legitminh/keyflow';
+</script>
+
+<StaticButton keys={['ctrl', 'k']} on_close={openSearch}>Search</StaticButton>
+<StaticButton keys="abc" on_close={runAction}>Run action</StaticButton>
+<StaticButton keys={['esc', 'a']} on_close={goBack}>Go back</StaticButton>
+<StaticInteractable keys="z" on_close={customAction}>Custom content</StaticInteractable>
+```
+
+A character string such as `"ab"` means press a then b. Use an array to include named keys, such as `['ctrl', 'k']`, `['shift', 'a']`, or `['esc', 'a']`. A recognized single name such as `"esc"` or `"shift"` binds that key alone; to spell a word that is also a key name, use individual character array entries. A literal `+` is an ordinary character key, never a sequence separator.
+
+All keys follow the same rules: keydown order defines the sequence, keys may overlap or be released between presses, and the action runs once every participating key has been released. Sequences have no timeout. Repeated presses such as `"aab"` work; keyboard auto-repeat does not advance the sequence. Letter matching and displayed letters are always lowercase: `a` and `A` identify the same key. Displays concatenate their key symbols directly, such as `ab`, `⌘k`, or `⇧a`.
+
+### Conflicts and automatic assignment
+
+Static bindings must be unique and prefix-free. If `"a"` is bound, adding `"ab"` throws `RangeError`; adding `"a"` when `"ab"` exists also throws. The same applies to every key: `"esc"` conflicts with `['esc', 'a']`, and `"shift"` conflicts with `['shift', 'a']`. Siblings such as `"ab"` and `"ac"` are valid. OS aliases are resolved before checking conflicts. Rejected registrations leave existing bindings and reservations intact.
+
+Every single-character key in a mounted static binding is reserved from the automatic alphabet. `"ab"` reserves `a` and `b`; `['ctrl', 'k']` reserves `k`. Reservations are shared: a key returns only after its last static binding changes or unmounts. `set_available_keys()` preserves mounted reservations.
+
+`Button`, `Interactable`, `ButtonPositional`, and `InteractablePositional` keep their existing automatic assignment and priority behavior, using the remaining alphabet. As positional controls enter or leave view, their routes grow, shrink, or reorder while static bindings remain fixed. Static controls do not consume automatic token positions. Changes to automatic routes clear pending automatic input; a pending static sequence remains valid across automatic registration changes.
+
+If reservations exhaust the automatic pool, automatic controls retain pointer activation and show no shortcut. A one-key effective pool supports one automatic control; multiple automatic controls need at least two available keys. Static bindings continue working independently.
+
+### OS mapping and symbols
+
+`ctrl`, `mod`, and `primary` map to Command on macOS and Control on Windows/Linux. `control` means literal Control; `command`, `cmd`, and `meta` mean literal Command/Meta. OS mapping changes a key's identity and label, while input matching still treats it as an ordinary sequence step.
+
+| Binding | macOS label | Windows label |
+| --- | --- | --- |
+| `['ctrl', 'k']` | `⌘k` | `ctrlk` |
+| `['control', 'k']` | `⌃k` | `ctrlk` |
+| `['command', 'k']` | `⌘k` | `⊞k` |
+| `['shift', 'k']` | `⇧k` | `⇧k` |
+| `['alt', 'k']` | `⌥k` | `altk` |
+| `'esc'` | `⎋` | `⎋` |
+| `['esc', 'a']` | `⎋a` | `⎋a` |
+
+Other defaults include `⇥` (tab), `⏎` (enter), `⌫` (backspace), `⌦` (delete), `␣` (space), and arrow symbols. `key_symbols`, `format_shortcut(keys, platform?)`, and `detect_shortcut_platform()` are exported for custom displays. `StaticButtonDisplay` and the bindable `StaticInteractable.myToken` support composing custom visualizers.
+
+The browser detects the platform. Override it with `<Keyflow options={{ platform: 'mac' }}>` (`'mac'`, `'windows'`, `'linux'`, or `'auto'`). Registration and static labels initialize in the browser; `format_shortcut()` defaults to Windows during SSR. Keys use the lowercase `KeyboardEvent.key` value, so shifted punctuation and Option-produced characters follow the active layout. OS/browser input that never reaches the page cannot be captured. See [KeyboardEvent.key](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key).
+
+### Lifecycle and performance
+
+A mismatched key clears the pending static sequence and can start a new sequence. Focus changes, window blur, hidden pages, composition input, and binding changes clear pending input. Form fields and editable content keep normal typing behavior. Recognized static steps prevent browser defaults. The existing automatic Escape reset and handling of unregistered browser modifier shortcuts are preserved. Clicking a static control calls `on_close` normally.
+
+Static input uses constant-time trie transitions per event. Each visualizer checks its cached path without searching other controls. Automatic routes and indices are rebuilt only when registration, ordering, or the effective alphabet changes. Automatic queries and each display take linear time in shortcut length; rendering across displays is linear in their combined shortcut lengths.
+
+Run `pnpm demo` and visit `/static` for static sequences, OS previews and dynamic bindings, or `/mixed` to see static and visibility-based positional controls together.
 
 ## Layout components
 

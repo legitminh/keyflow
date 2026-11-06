@@ -48,6 +48,7 @@
       <Image href={demoImage} alt="Grid layout example" maxWidth="100%" maxHeight="30vh" />
     </Indent>
     <LineText><h2 id="destination">destination</h2></LineText>
+    <LineText><a href="/static">static shortcuts demo</a></LineText>
     <LineText><Link href="#">back to top</Link></LineText>
   </Document>
 </Keyflow>

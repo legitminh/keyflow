@@ -1,184 +1,148 @@
-import { writable } from 'svelte/store';
-
-import { get } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { insert_sorted } from '../utils/iterable.js';
 import { key_presets } from '../key-presets.js';
 
-// below: list of key routes for each input token, where each key route is a list of keys that can be pressed to activate the input token
+export type InputToken = { priority: number; on_close(): void };
+
 export const _map_key_route = writable<Map<InputToken, string[]>>(new Map());
-
 export const _map_numeric_route = writable<Map<InputToken, number[]>>(new Map());
-
-export const map_key_route = {
-  subscribe: _map_key_route.subscribe
-};
-
-export const map_numeric_route = {
-  subscribe: _map_numeric_route.subscribe
-};
-
-const get_numeric_route = (value: InputToken | null) => {
-  if (value === null) {
-    return [-1];
-  }
-  const numeric_index = get(_list_input_token).findIndex((token) => token === value);
-  if (numeric_index === -1) {
-    return [-1];
-  } //non-viable input token
-  const numeric_route = base_diffusion_s_endian(numeric_index, get(_available_keys).length);
-
-  return numeric_route;
-};
-
-const get_key_route = (value: InputToken | null) => {
-  const numeric_route = get_numeric_route(value);
-  const key_route = Array.from(numeric_route, (v) => get(_available_keys)[v]);
-
-  return key_route;
-};
-
-const update_map_key_route = () => {
-  const keyRoutes = new Map<InputToken, string[]>();
-  for (const token of get(_list_input_token)) {
-    keyRoutes.set(token, get_key_route(token));
-  }
-  _map_key_route.set(keyRoutes);
-};
-
-const update_map_numeric_route = () => {
-  const numericRoutes = new Map<InputToken, number[]>();
-  for (const token of get(_list_input_token)) {
-    numericRoutes.set(token, get_numeric_route(token));
-  }
-  _map_numeric_route.set(numericRoutes);
-};
-
-export type InputToken = {
-  // token is binary component of input space that can be on or off over the timeline
-  priority: number;
-  on_close(): void; // action trigger when token is deactivated
-};
-
+export const map_key_route = { subscribe: _map_key_route.subscribe };
+export const map_numeric_route = { subscribe: _map_numeric_route.subscribe };
+/** Cached positions for display colors; never scan the token list while rendering. */
+export const map_input_index = writable<Map<InputToken, number>>(new Map());
+export const _list_input_token = writable<InputToken[]>([]);
+export const list_input_token = { subscribe: _list_input_token.subscribe };
+export const _list_key_strokes = writable<number[]>([]);
+export const list_key_strokes = { subscribe: _list_key_strokes.subscribe };
+/** Effective alphabet, after static shortcuts reserve their constituent keys. */
 export const _available_keys = writable<string[]>([...key_presets.default]);
 
-const compare_input_token = (a: InputToken, b: InputToken) => a.priority - b.priority;
+let configuredKeys: readonly string[] = key_presets.default;
+let keyIndices = new Map(configuredKeys.map((key, index) => [key, index]));
+const tokenSet = new Set<InputToken>();
+const reservations = new Map<object, readonly string[]>();
+const reservedCounts = new Map<string, number>();
+const compare = (a: InputToken, b: InputToken) => a.priority - b.priority;
 
-export const _list_key_strokes = writable<number[]>([]);
+/** O(n * route length), only when registration, ordering, or the alphabet changes. */
+function rebuild_routes() {
+  const tokens = get(_list_input_token);
+  const keys = get(_available_keys);
+  let length = keys.length >= 2 || keys.length === 1 && tokens.length === 1 ? 1 : 0;
+  if (keys.length >= 2) {
+    for (let capacity = keys.length; capacity < tokens.length; capacity *= keys.length) length++;
+  }
+  const numeric = new Map<InputToken, number[]>();
+  const labels = new Map<InputToken, string[]>();
+  const indices = new Map<InputToken, number>();
+  tokens.forEach((token, index) => {
+    indices.set(token, index);
+    if (!length) return; // Insufficient alphabet: leave pointer activation available.
+    let remainder = index;
+    const route = Array.from({ length }, () => {
+      const digit = remainder % keys.length;
+      remainder = Math.floor(remainder / keys.length);
+      return digit;
+    });
+    numeric.set(token, route);
+    labels.set(token, route.map((digit) => keys[digit]));
+  });
+  map_input_index.set(indices);
+  _map_numeric_route.set(numeric);
+  _map_key_route.set(labels);
+  reset_key_strokes();
+}
 
-export const list_key_strokes = {
-  subscribe: _list_key_strokes.subscribe
-};
+function update_alphabet() {
+  const next = configuredKeys.filter((key) => !reservedCounts.has(key));
+  const previous = get(_available_keys);
+  if (next.length === previous.length && next.every((key, index) => key === previous[index])) return;
+  keyIndices = new Map(next.map((key, index) => [key, index]));
+  _available_keys.set(next);
+  rebuild_routes();
+}
 
-export const set_key_strokes = (value: number[]) => {
-  _list_key_strokes.set(value);
-  update_map_key_route();
-  update_map_numeric_route();
-};
+/** Internal, reference-counted reservations; shared static keys restore correctly. */
+export function reserve_input_keys(owner: object, keys: readonly string[]) {
+  const previous = reservations.get(owner) ?? [];
+  for (const key of previous) {
+    const count = reservedCounts.get(key)! - 1;
+    if (count) reservedCounts.set(key, count);
+    else reservedCounts.delete(key);
+  }
+  const next = [...new Set(keys.filter((key) => key.length === 1).map((key) => key.toLowerCase()))];
+  if (next.length) reservations.set(owner, next);
+  else reservations.delete(owner);
+  for (const key of next) reservedCounts.set(key, (reservedCounts.get(key) ?? 0) + 1);
+  update_alphabet();
+}
 
+export const set_key_strokes = (value: number[]) => _list_key_strokes.set(value);
+export const reset_key_strokes = () => set_key_strokes([]);
 export const add_key_strokes = (value: string) => {
-  const index_value = get(_available_keys).findIndex((v) => v === value.toLowerCase());
-  if (index_value != -1) {
-    _list_key_strokes.update((prev: number[]) => [...prev, index_value]);
+  const index = keyIndices.get(value.toLowerCase());
+  if (index !== undefined) _list_key_strokes.update((previous) => [...previous, index]);
+};
+
+export const add_input_token = (token: InputToken) => {
+  if (tokenSet.has(token)) return;
+  tokenSet.add(token);
+  const next = [...get(_list_input_token)];
+  insert_sorted(next, token, compare);
+  _list_input_token.set(next);
+  rebuild_routes();
+};
+
+export const remove_input_token = (token: InputToken) => {
+  if (!tokenSet.delete(token)) return;
+  _list_input_token.update((tokens) => tokens.filter((item) => item !== token));
+  rebuild_routes();
+};
+
+export const update_list_input_token = (token: InputToken, priority: number) => {
+  token.priority = priority;
+  const previous = get(_list_input_token);
+  if (!tokenSet.has(token)) return previous;
+  const next = previous.filter((item) => item !== token);
+  insert_sorted(next, token, compare);
+  if (next.some((item, index) => item !== previous[index])) {
+    _list_input_token.set(next);
+    rebuild_routes();
   }
-  update_map_key_route();
-  update_map_numeric_route();
+  return next;
 };
 
-export const reset_key_strokes = () => {
-  set_key_strokes([]);
-  update_map_key_route();
-  update_map_numeric_route();
-};
-
-export const _list_input_token = writable<InputToken[]>([]);
-
-export const list_input_token = {
-  subscribe: _list_input_token.subscribe
-};
-
-export const add_input_token = (value: InputToken) => {
-  if (get(_list_input_token).findIndex((v) => v === value) !== -1) {
-    return; //if already exist
-  }
-  _list_input_token.update((prev) => {
-    const next = [...prev];
-    insert_sorted<InputToken>(next, value, compare_input_token);
-    return next;
-  });
-  update_map_key_route();
-  update_map_numeric_route();
-};
-
-export const update_list_input_token = (value: InputToken, new_priority: number) => {
-  let nextList: InputToken[] = [];
-
-  _list_input_token.update((prev) => {
-    const next = [...prev];
-    const index = next.indexOf(value);
-    if (index === -1) {
-      nextList = prev;
-      return prev;
-    }
-
-    value.priority = new_priority;
-    // insert_sorted<InputToken>(next, value, compare_input_token);
-    next.sort(compare_input_token);
-    nextList = next;
-    return next;
-  });
-
-  update_map_key_route();
-  update_map_numeric_route();
-  return nextList;
-};
-
-export const remove_input_token = (value: InputToken) => {
-  _list_input_token.update((prev) => prev.filter((t) => t !== value));
-  update_map_key_route();
-  update_map_numeric_route();
-};
-
-export const base_conversion_s_endian = (initial: number[], base: number) => {
+export const base_conversion_s_endian = (digits: number[], base: number) => {
   let result = 0;
-  for (let i = 0; i < initial.length; i++) {
-    result += initial[i] * base ** i;
+  let power = 1;
+  for (const digit of digits) {
+    result += digit * power;
+    power *= base;
   }
   return result;
 };
 
-const get_num_key_strokes = (list_input_token: InputToken[], available_keys: string[]) => {
-  return Math.max(
-    1,
-    Math.ceil(Math.log(Math.max(1, list_input_token.length)) / Math.log(available_keys.length))
-  );
-};
+/** O(route length) lookup, independent of the number of controls. */
+export function take_input_action(key: string): (() => void) | undefined {
+  if (!keyIndices.has(key.toLowerCase())) return;
+  const strokes = get(_list_key_strokes);
+  const tokens = get(_list_input_token);
+  const base = keyIndices.size;
+  if (!strokes.length || !base || (base === 1 && tokens.length !== 1)) return;
+  if (base ** strokes.length < tokens.length) return;
+  const action = tokens[base_conversion_s_endian(strokes, base)]?.on_close;
+  reset_key_strokes();
+  return action;
+}
 
-const num_key_strokes_needed = () => {
-  return get_num_key_strokes(get(_list_input_token), get(_available_keys));
-};
-
-const base_diffusion_s_endian = (initial: number, base: number) => {
-  const result: number[] = [];
-  while (initial > 0) {
-    result.push(initial % base);
-    initial = Math.floor(initial / base);
-  }
-  while (result.length < num_key_strokes_needed()) {
-    result.push(0);
-  }
-  return result;
-};
-
-/** Change the shortcut alphabet and recalculate every displayed route. */
+/** Change the configured alphabet; mounted static reservations still apply. */
 export function set_available_keys(keys: readonly string[]) {
   const normalized = keys.map((key) => key.toLowerCase());
-  if (
-    normalized.length < 2 ||
-    normalized.some((key) => key.length !== 1) ||
-    new Set(normalized).size !== normalized.length
-  ) {
+  if (normalized.length < 2 || normalized.some((key) => key.length !== 1) ||
+      new Set(normalized).size !== normalized.length) {
     throw new RangeError('Provide at least two unique single-character shortcut keys');
   }
-  _available_keys.set(normalized);
+  configuredKeys = normalized;
+  update_alphabet();
   reset_key_strokes();
 }
