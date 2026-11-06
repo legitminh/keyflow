@@ -63,6 +63,8 @@
     const resizeObserver = new ResizeObserver(update_priority);
     if (element) resizeObserver.observe(element);
 
+    // Dynamically mounted controls should enter the list in their measured position.
+    update_priority();
     add_input_token(myToken);
     window.addEventListener('scroll', update_priority, { passive: true });
     window.addEventListener('resize', update_priority);

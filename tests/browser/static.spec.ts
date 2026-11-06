@@ -122,8 +122,9 @@ test('positional controls enter and leave the automatic pool without changing a 
   await expect(automatic.locator('.pending_route')).toHaveText(/^[cd]$/);
   await expect(far.locator('.pending_route')).toHaveCount(0);
   await page.getByRole('button', { name: 'Toggle positional controls' }).click();
-  await expect(first.locator('.pending_route')).toHaveText(/^[cd]{2}$/);
-  await expect(automatic.locator('.pending_route')).toHaveText(/^[cd]{2}$/);
+  await expect(automatic.locator('.pending_route')).toHaveText('cc');
+  await expect(first.locator('.pending_route')).toHaveText('dc');
+  await expect(page.getByRole('button', { name: /near 2:/ }).locator('.pending_route')).toHaveText('cd');
   const shortcut = await first.locator('.pending_route').innerText();
   await page.keyboard.type(shortcut);
   await expect(page.getByRole('button', { name: /near 1: 1/ })).toBeVisible();
