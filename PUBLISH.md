@@ -49,6 +49,8 @@ On Linux, use `pnpm exec playwright install --with-deps chromium` to install bro
 CHROME_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' pnpm test:browser
 ```
 
+GitHub CI uses Chrome already installed on the hosted runner through `CHROME_PATH`. This runs the same browser suite without downloading Chromium or extra system fonts from package mirrors. A clean Linux machine without Chrome can still use the Playwright installation command above.
+
 Create the archive outside the repository. Keep these shell variables for the remaining steps:
 
 ```sh

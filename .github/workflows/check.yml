@@ -12,5 +12,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check && pnpm build && pnpm test
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:browser
+      - name: Run browser tests with preinstalled Chrome
+        run: |
+          chrome_binary=$(command -v google-chrome)
+          "$chrome_binary" --version
+          CHROME_PATH="$chrome_binary" pnpm test:browser
