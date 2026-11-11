@@ -4,6 +4,23 @@ A reusable interaction system extracted from minh.website: keyboard-routed butto
 
 Built for **Svelte 5**, with no SvelteKit or site-content dependency. Mount one `Keyflow` root and one `Document` per page. State and preferences are shared across that application; independent embedded instances are not supported. The optional stylesheet sets document-wide typography, colors, and overflow for this full-page user flow.
 
+## Input frames and virtual keyboards
+
+**Recommended client approach:** create reusable InputFrame references for each page substate, dropdown, dialog, or picker, and navigate with `input_frame_manager.push(frame)` / `pop()`. `Keyflow` supplies the permanent root. Every Interactable registers to its frame; only the stack's top frame can respond to keys or direct clicks. Popping restores the previous bindings without manual deregistration. Stack order is independent of DOM nesting.
+
+```svelte
+<Button on_close={() => input_frame_manager.push(menuFrame)}>Open menu</Button>
+<InputFrame frame={menuFrame}>
+  <Button on_close={() => input_frame_manager.pop()}>Back</Button>
+</InputFrame>
+```
+
+Physical and virtual keys share one path: discrete key signals → keystroke management → active frame bindings → InputToken → action. An action can push another state, return to the previous one, or perform any client effect.
+
+The new `VirtualKeyboard` provides color-coded text keycaps in flick-alpha, alpha, alphanumeric, 60%, ortholinear, 4×4, and 4×8 layouts, with an optional toolbar. Touch and mouse input follow the same shortcut path as hardware. `FlickKeyDisplay` translates releases beyond each edge into independently configurable keys; layouts can mix flick and regular keys. `KeyboardDisplay` and `KeyboardKeyDisplay` support custom geometry and key behavior; `create_keyboard_store` and `ActiveKeyboard` manage a project's layouts and nullable active selection.
+
+Read the [migration guide and complete API examples](docs/input-frames-and-keyboards.md) before updating a client. The default demo (`/`, also `/stack`) starts with flick alpha in a persistent lower-half keyboard dock; E/Choose keyboard opens the frame menu for all seven layouts plus a mixed example. See the [flick guide and complete mapping](docs/flick-keyboards.md), or `/frames` for more customization examples. The [implementation plan](docs/implementation-plan.md) records the scope and validation strategy.
+
 ## Add to your project
 ```sh
 pnpm add https://github.com/legitminh/keyflow/releases/download/v0.2.0/legitminh-keyflow-0.2.0.tgz
@@ -21,7 +38,7 @@ pnpm install --frozen-lockfile
 pnpm demo
 ```
 
-The standalone Vite demo is in `examples/demo`. It includes shortcut controls, a text input, themes, zoom, native scrolling, and an anchor destination.
+The standalone Vite demo is in `examples/demo`. The default `/` (also `/stack`) provides tablet-sized flick keys and a keyboard-selection frame menu above a persistent half-screen dock. `/frames` adds keyboard customization examples. `/flow` retains shortcut controls, text input, themes, zoom, native scrolling, and anchor navigation.
 
 ## Use in another website
 
@@ -67,7 +84,7 @@ Commit that archive and the consumer's lockfile so a clean checkout needs neithe
 </Keyflow>
 ```
 
-Choose shortcut registration and ordering independently:
+Within each input frame, choose registration and ordering independently:
 
 | Component | Priority | Shortcut active offscreen? |
 | --- | --- | --- |
@@ -108,9 +125,9 @@ All keys follow the same rules: keydown order defines the sequence, keys may ove
 
 ### Conflicts and automatic assignment
 
-Static bindings must be unique and prefix-free. If `"a"` is bound, adding `"ab"` throws `RangeError`; adding `"a"` when `"ab"` exists also throws. The same applies to every key: `"esc"` conflicts with `['esc', 'a']`, and `"shift"` conflicts with `['shift', 'a']`. Siblings such as `"ab"` and `"ac"` are valid. OS aliases are resolved before checking conflicts. Rejected registrations leave existing bindings and reservations intact.
+Static bindings must be unique and prefix-free within their InputFrame; different frames may reuse the same bindings. If `"a"` is bound, adding `"ab"` throws `RangeError`; adding `"a"` when `"ab"` exists also throws. The same applies to every key: `"esc"` conflicts with `['esc', 'a']`, and `"shift"` conflicts with `['shift', 'a']`. Siblings such as `"ab"` and `"ac"` are valid. OS aliases are resolved before checking conflicts. Rejected registrations leave existing bindings and reservations intact.
 
-Every single-character key in a mounted static binding is reserved from the automatic alphabet. `"ab"` reserves `a` and `b`; `['ctrl', 'k']` reserves `k`. Reservations are shared: a key returns only after its last static binding changes or unmounts. `set_available_keys()` preserves mounted reservations.
+Every single-character key in a mounted static binding is reserved from its frame’s automatic alphabet. `"ab"` reserves `a` and `b`; `['ctrl', 'k']` reserves `k`. Reservations are shared: a key returns only after its last static binding changes or unmounts. `set_available_keys()` preserves mounted reservations.
 
 `Button`, `Interactable`, `ButtonPositional`, and `InteractablePositional` keep their existing automatic assignment and priority behavior, using the remaining alphabet. As positional controls enter or leave view, their routes grow, shrink, or reorder while static bindings remain fixed. Static controls do not consume automatic token positions. Changes to automatic routes clear pending automatic input; a pending static sequence remains valid across automatic registration changes.
 
@@ -136,7 +153,7 @@ The browser detects the platform. Override it with `<Keyflow options={{ platform
 
 ### Lifecycle and performance
 
-A mismatched key clears the pending static sequence and can start a new sequence. Focus changes, window blur, hidden pages, composition input, and binding changes clear pending input. Form fields and editable content keep normal typing behavior. Recognized static steps prevent browser defaults. The existing automatic Escape reset and handling of unregistered browser modifier shortcuts are preserved. Clicking a static control calls `on_close` normally.
+A mismatched key clears the pending static sequence and can start a new sequence. Focus changes, window blur, hidden pages, composition input, and binding changes clear pending input. Form fields and editable content keep normal typing behavior. Recognized static steps prevent browser defaults. The existing automatic Escape reset and handling of unregistered browser modifier shortcuts are preserved. Clicking a static control invokes its token only while its frame is active.
 
 Static input uses constant-time trie transitions per event. Each visualizer checks its cached path without searching other controls. Automatic routes and indices are rebuilt only when registration, ordering, or the effective alphabet changes. Automatic queries and each display take linear time in shortcut length; rendering across displays is linear in their combined shortcut lengths.
 
@@ -272,6 +289,6 @@ pnpm exec playwright install chromium
 pnpm test:browser
 ```
 
-Browser tests cover shortcut activation, form input, saved preferences, paging, anchor navigation, and native scrolling. To use an existing Chrome installation, set `CHROME_PATH` when running `pnpm test:browser`.
+Browser tests cover flick directions/cancellation/real touch dragging, half-screen docking, frame masking/restoration, virtual keyboard layouts and mouse/touch activation, custom key adapters, shortcut activation, form input, saved preferences, paging, anchor navigation, and native scrolling. To use an existing Chrome installation, set `CHROME_PATH` when running `pnpm test:browser`.
 
 Before updating a consumer, increase the version in `package.json`, validate, pack, and install the new archive. Keep content, routing, media, and site-specific effects in the consuming project. Package source lives in `src/lib`; `dist` and declarations are generated by `@sveltejs/package`.

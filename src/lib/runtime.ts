@@ -2,13 +2,9 @@ import { min_box } from './stores/layout.svelte.js';
 import { lockstep_scrolling } from './stores/scroll.svelte.js';
 import { themes, set_theme_id, type Theme } from './stores/theme.svelte.js';
 import { readPreference, setStoragePrefix } from './storage.js';
-import {
-  add_key_strokes,
-  reset_key_strokes,
-  take_input_action,
-  set_available_keys
-} from './stores/input.js';
-import { static_input } from './stores/static-input.js';
+import { dispatch_key_input, reset_input } from './input-events.js';
+import { set_available_keys } from './stores/input.js';
+import { configure_input_frames } from './input-frames.js';
 import { detect_shortcut_platform, type ShortcutPlatform } from './shortcuts.js';
 
 export interface KeyflowOptions {
@@ -27,7 +23,7 @@ export interface KeyflowOptions {
 /** Initialize one full-page Keyflow application. Returns listener cleanup. */
 export function initializeKeyflow(options: KeyflowOptions = {}) {
   if (typeof window === 'undefined') return () => {};
-  static_input.configure(options.platform && options.platform !== 'auto' ? options.platform : detect_shortcut_platform());
+  configure_input_frames(options.platform && options.platform !== 'auto' ? options.platform : detect_shortcut_platform());
   setStoragePrefix(options.storagePrefix ?? 'keyflow:');
   if (options.themes) {
     if (!options.themes.length) throw new RangeError('At least one theme is required');
@@ -53,44 +49,27 @@ export function initializeKeyflow(options: KeyflowOptions = {}) {
           (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
       );
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.defaultPrevented || event.isComposing || isEditing(event)) return resetInput();
-    if (static_input.keydown(event)) {
-      event.preventDefault();
-      reset_key_strokes();
-      return;
-    }
-    if (event.repeat) return;
-    if (event.ctrlKey || event.metaKey || event.altKey) return reset_key_strokes();
-    if (event.key === 'Escape') return reset_key_strokes();
-    add_key_strokes(event.key);
+    if (event.defaultPrevented || event.isComposing || isEditing(event)) return reset_input();
+    if (dispatch_key_input('keydown', event)) event.preventDefault();
   };
   const onKeyUp = (event: KeyboardEvent) => {
-    if (event.defaultPrevented || event.isComposing || isEditing(event)) return resetInput();
-    if (static_input.keyup(event)) {
-      event.preventDefault();
-      return;
-    }
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
-    const action = take_input_action(event.key);
-    if (!action) return;
-    action();
+    if (event.defaultPrevented || event.isComposing || isEditing(event)) return reset_input();
+    if (dispatch_key_input('keyup', event)) event.preventDefault();
   };
-  const resetInput = () => {
-    static_input.reset();
-    reset_key_strokes();
-  };
-  const onVisibilityChange = () => { if (document.hidden) resetInput(); };
+  const onVisibilityChange = () => { if (document.hidden) reset_input(); };
+  window.addEventListener('compositionstart', reset_input);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
-  window.addEventListener('blur', resetInput);
-  window.addEventListener('focusin', resetInput);
+  window.addEventListener('blur', reset_input);
+  window.addEventListener('focusin', reset_input);
   document.addEventListener('visibilitychange', onVisibilityChange);
   return () => {
+    window.removeEventListener('compositionstart', reset_input);
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
-    window.removeEventListener('blur', resetInput);
-    window.removeEventListener('focusin', resetInput);
+    window.removeEventListener('blur', reset_input);
+    window.removeEventListener('focusin', reset_input);
     document.removeEventListener('visibilitychange', onVisibilityChange);
-    resetInput();
+    reset_input();
   };
 }

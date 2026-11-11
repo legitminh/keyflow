@@ -9,7 +9,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  import { add_input_token, remove_input_token, type InputToken } from '../stores/input.js';
+  import type { InputToken } from '../stores/input.js';
 
   // visibility management
   import { visibility } from '../actions/visibility.js';
@@ -21,18 +21,11 @@
     myToken = $bindable()
   }: { children?: Snippet; on_close: () => void; myToken?: InputToken } = $props();
 
-  function register() {
-    if (!myToken) return;
-    add_input_token(myToken);
-  }
-
-  function unregister() {
-    if (myToken) remove_input_token(myToken);
-  }
+  let visible = $state(false);
 </script>
 
-<Interactable {on_close} bind:myToken>
-  <div use:visibility={{ onFullyVisible: register, onHidden: unregister }}>
+<Interactable {on_close} bind:myToken registered={visible}>
+  <div use:visibility={{ onFullyVisible: () => visible = true, onHidden: () => visible = false }}>
     {@render children?.()}
   </div>
 </Interactable>

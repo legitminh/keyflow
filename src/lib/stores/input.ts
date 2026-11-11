@@ -19,8 +19,29 @@ export const _available_keys = writable<string[]>([...key_presets.default]);
 
 let configuredKeys: readonly string[] = key_presets.default;
 let keyIndices = new Map(configuredKeys.map((key, index) => [key, index]));
-const tokenSet = new Set<InputToken>();
-const reservations = new Map<object, readonly string[]>();
+/** Registration scope; its bindings survive while another scope masks it. */
+export interface InputFrameState {
+  tokens: Set<InputToken>;
+  ordered: InputToken[];
+  reservations: Map<object, readonly string[]>;
+}
+export const create_input_frame_state = (): InputFrameState => ({ tokens: new Set(), ordered: [], reservations: new Map() });
+export const root_input_state = create_input_frame_state();
+let activeState = root_input_state;
+
+export function select_input_frame_state(frame: InputFrameState) {
+  activeState = frame;
+  _list_input_token.set([...frame.ordered]);
+  if (!refresh_reservations()) rebuild_routes();
+}
+
+function refresh_reservations() {
+  reservedCounts.clear();
+  for (const keys of activeState.reservations.values()) {
+    for (const key of keys) reservedCounts.set(key, (reservedCounts.get(key) ?? 0) + 1);
+  }
+  return update_alphabet();
+}
 const reservedCounts = new Map<string, number>();
 const compare = (a: InputToken, b: InputToken) => a.priority - b.priority;
 
@@ -56,23 +77,25 @@ function rebuild_routes() {
 function update_alphabet() {
   const next = configuredKeys.filter((key) => !reservedCounts.has(key));
   const previous = get(_available_keys);
-  if (next.length === previous.length && next.every((key, index) => key === previous[index])) return;
+  if (next.length === previous.length && next.every((key, index) => key === previous[index])) return false;
   keyIndices = new Map(next.map((key, index) => [key, index]));
   _available_keys.set(next);
   rebuild_routes();
+  return true;
 }
 
 /** Internal, reference-counted reservations; shared static keys restore correctly. */
-export function reserve_input_keys(owner: object, keys: readonly string[]) {
-  const previous = reservations.get(owner) ?? [];
+export function reserve_input_keys(owner: object, keys: readonly string[], frame = root_input_state) {
+  const previous = frame.reservations.get(owner) ?? [];
+  const next = [...new Set(keys.filter((key) => key.length === 1).map((key) => key.toLowerCase()))];
+  if (next.length) frame.reservations.set(owner, next);
+  else frame.reservations.delete(owner);
+  if (frame !== activeState) return;
   for (const key of previous) {
     const count = reservedCounts.get(key)! - 1;
     if (count) reservedCounts.set(key, count);
     else reservedCounts.delete(key);
   }
-  const next = [...new Set(keys.filter((key) => key.length === 1).map((key) => key.toLowerCase()))];
-  if (next.length) reservations.set(owner, next);
-  else reservations.delete(owner);
   for (const key of next) reservedCounts.set(key, (reservedCounts.get(key) ?? 0) + 1);
   update_alphabet();
 }
@@ -84,30 +107,37 @@ export const add_key_strokes = (value: string) => {
   if (index !== undefined) _list_key_strokes.update((previous) => [...previous, index]);
 };
 
-export const add_input_token = (token: InputToken) => {
-  if (tokenSet.has(token)) return;
-  tokenSet.add(token);
-  const next = [...get(_list_input_token)];
+export const register_input_token = (token: InputToken, frame: InputFrameState) => {
+  if (frame.tokens.has(token)) return;
+  frame.tokens.add(token);
+  const next = [...frame.ordered];
   insert_sorted(next, token, compare);
+  frame.ordered = next;
+  if (frame !== activeState) return;
   _list_input_token.set(next);
   rebuild_routes();
 };
 
-export const remove_input_token = (token: InputToken) => {
-  if (!tokenSet.delete(token)) return;
-  _list_input_token.update((tokens) => tokens.filter((item) => item !== token));
+export const unregister_input_token = (token: InputToken, frame: InputFrameState) => {
+  if (!frame.tokens.delete(token)) return;
+  frame.ordered = frame.ordered.filter((item) => item !== token);
+  if (frame !== activeState) return;
+  _list_input_token.set(frame.ordered);
   rebuild_routes();
 };
 
-export const update_list_input_token = (token: InputToken, priority: number) => {
+export const update_input_token = (token: InputToken, priority: number, frame: InputFrameState) => {
   token.priority = priority;
-  const previous = get(_list_input_token);
-  if (!tokenSet.has(token)) return previous;
+  const previous = frame.ordered;
+  if (!frame.tokens.has(token)) return previous;
   const next = previous.filter((item) => item !== token);
   insert_sorted(next, token, compare);
   if (next.some((item, index) => item !== previous[index])) {
-    _list_input_token.set(next);
-    rebuild_routes();
+    frame.ordered = next;
+    if (frame === activeState) {
+      _list_input_token.set(next);
+      rebuild_routes();
+    }
   }
   return next;
 };
@@ -123,17 +153,20 @@ export const base_conversion_s_endian = (digits: number[], base: number) => {
 };
 
 /** O(route length) lookup, independent of the number of controls. */
-export function take_input_action(key: string): (() => void) | undefined {
+export function take_input_token(key: string): InputToken | undefined {
   if (!keyIndices.has(key.toLowerCase())) return;
   const strokes = get(_list_key_strokes);
   const tokens = get(_list_input_token);
   const base = keyIndices.size;
   if (!strokes.length || !base || (base === 1 && tokens.length !== 1)) return;
   if (base ** strokes.length < tokens.length) return;
-  const action = tokens[base_conversion_s_endian(strokes, base)]?.on_close;
+  const token = tokens[base_conversion_s_endian(strokes, base)];
   reset_key_strokes();
-  return action;
+  return token;
 }
+
+/** Compatibility helper for imperative callers that resolve actions themselves. */
+export const take_input_action = (key: string) => take_input_token(key)?.on_close;
 
 /** Change the configured alphabet; mounted static reservations still apply. */
 export function set_available_keys(keys: readonly string[]) {
@@ -146,3 +179,8 @@ export function set_available_keys(keys: readonly string[]) {
   update_alphabet();
   reset_key_strokes();
 }
+
+// Legacy imperative helpers target the root frame. Components use their context scope.
+export const add_input_token = (token: InputToken) => register_input_token(token, root_input_state);
+export const remove_input_token = (token: InputToken) => unregister_input_token(token, root_input_state);
+export const update_list_input_token = (token: InputToken, priority: number) => update_input_token(token, priority, root_input_state);

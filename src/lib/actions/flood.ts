@@ -34,7 +34,7 @@ export function flood(node: HTMLElement, params: FloodParams) {
   // mouse / touch: the press can land anywhere on the button, but the paint still pours from this node
   const pressable = node.closest('button') ?? node;
   const on_pointer_down = (event: PointerEvent) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || (pressable instanceof HTMLButtonElement && pressable.disabled)) return;
     start();
     window.addEventListener('pointerup', on_pointer_up);
     window.addEventListener('pointercancel', on_pointer_up);

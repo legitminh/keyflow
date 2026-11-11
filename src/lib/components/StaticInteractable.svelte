@@ -1,8 +1,12 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { Shortcut } from '../shortcuts.js';
-  import { create_static_token, static_input, type StaticInputToken } from '../stores/static-input.js';
+  import { create_static_token, type StaticInputToken } from '../stores/static-input.js';
 
+  import { active_input_frame } from '../input-frames.js';
+  import { get_input_frame } from '../input-frame-context.js';
+  const frame = get_input_frame();
+  const { static_input } = frame;
   let { keys, on_close, children, myToken = $bindable() }: {
     keys: Shortcut; on_close: () => void; children?: Snippet; myToken?: StaticInputToken;
   } = $props();
@@ -15,8 +19,9 @@
   });
 </script>
 
-<button type="button" onclick={on_close} class="inline cursor-pointer"
+<button type="button" disabled={$active_input_frame !== frame}
+  onclick={() => frame.trigger(token)} class="inline cursor-pointer"
   aria-describedby={descriptionId}>
   {@render children?.()}
 </button>
-<span id={descriptionId} hidden>Shortcut: {$description.label}</span>
+<span id={descriptionId} hidden>{$active_input_frame === frame ? `Shortcut: ${$description.label}` : 'Inactive input frame'}</span>

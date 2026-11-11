@@ -3,6 +3,7 @@ import {
   detect_shortcut_platform, normalize_event_key, parse_shortcut, shortcut_key_label,
   type Shortcut, type ShortcutPlatform
 } from '../shortcuts.js';
+import { flash_input_token } from './activation.js';
 import { reserve_input_keys } from './input.js';
 
 export interface StaticShortcutDescription {
@@ -16,8 +17,13 @@ export interface StaticInputToken {
   description: Writable<StaticShortcutDescription>;
 }
 export const empty_static_description: StaticShortcutDescription = { label: '', labels: [], nodes: [] };
+// Preserve token identity through Svelte $state and bind:myToken, like frame references.
+class StaticToken implements StaticInputToken {
+  description = writable(empty_static_description);
+  constructor(public on_close: () => void) {}
+}
 export function create_static_token(on_close: () => void): StaticInputToken {
-  return { on_close, description: writable(empty_static_description) };
+  return new StaticToken(on_close);
 }
 
 interface Node { children: Map<string, Node>; token?: StaticInputToken; depth: number }
@@ -36,6 +42,20 @@ export class StaticInputManager {
   private platform: ShortcutPlatform = detect_shortcut_platform();
 
   constructor(private reserve: (owner: object, keys: readonly string[]) => void = () => {}) {}
+
+  validate_platform(platform: ShortcutPlatform) {
+    this.rebuild(this.bindings, platform, false);
+  }
+
+  clear() {
+    for (const token of this.bindings.keys()) {
+      this.reserve(token, []);
+      token.description.set(empty_static_description);
+    }
+    this.bindings.clear();
+    this.root = node(0);
+    this.reset();
+  }
 
   configure(platform: ShortcutPlatform) {
     this.rebuild(this.bindings, platform); // Validate collisions before changing live bindings.
@@ -60,7 +80,7 @@ export class StaticInputManager {
   }
 
   /** Registration/configuration work is linear in the total number of bound key presses. */
-  private rebuild(bindings: Map<StaticInputToken, Shortcut>, platform: ShortcutPlatform) {
+  private rebuild(bindings: Map<StaticInputToken, Shortcut>, platform: ShortcutPlatform, commit = true) {
     const root = node(0);
     const prepared = new Map<StaticInputToken, { keys: string[]; description: StaticShortcutDescription }>();
     for (const [token, shortcut] of bindings) {
@@ -80,6 +100,7 @@ export class StaticInputManager {
       const labels = keys.map((key) => shortcut_key_label(key, platform));
       prepared.set(token, { keys, description: { labels, label: labels.join(''), nodes } });
     }
+    if (!commit) return;
     this.reset();
     this.root = root;
     this.cursor = root;
@@ -100,9 +121,12 @@ export class StaticInputManager {
   }
 
   private finish() {
-    const action = this.cursor.token?.on_close;
+    const token = this.cursor.token;
     this.reset();
-    action?.();
+    if (token) {
+      flash_input_token(token);
+      token.on_close();
+    }
   }
 
   keydown(event: KeyEvent): boolean {
