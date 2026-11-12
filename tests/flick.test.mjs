@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolve_flick_direction, flick_translation_key } from '../dist/flick.js';
+import { resolve_flick_direction } from '../dist/flick.js';
 import { keyboard_layouts, create_grid_keyboard } from '../dist/keyboards.js';
-import { parse_shortcut } from '../dist/shortcuts.js';
+import { press_virtual_key } from '../dist/input-events.js';
 
 const bounds = { left: 100, right: 200, top: 100, bottom: 200 };
 test('flicks use final release beyond the original border; inside and border are taps', () => {
@@ -17,24 +17,32 @@ test('diagonal flicks choose normalized overrun, with vertical ties', () => {
   assert.equal(resolve_flick_direction(bounds, 50, 50), 'up');
   assert.equal(resolve_flick_direction({ left: 0, right: 200, top: 0, bottom: 100 }, 240, -30), 'up');
 });
-test('flick alpha covers US printable key identities and standard desktop controls', () => {
+test('flick alpha has exactly the requested 3×10 grid and no extra mappings', () => {
   const layout = keyboard_layouts['flick-alpha'];
-  assert.deepEqual(layout.rows.map((row) => row.length), [10, 9, 7]);
-  const keys = new Set();
+  assert.deepEqual(layout.rows.map((row) => row.map((key) => key.key)), [
+    [...'qwertyuiop'], [...'asdfghjkl;'], [...'zxcvbnm,.', 'space']
+  ]);
+  const expected = Object.fromEntries([...'abcdefghijklmnopqrstuvwxyz'].map((key) => [key, { down: key.toUpperCase() }]));
+  [...'qwertyuiop'].forEach((key, index) => expected[key].up = String((index + 1) % 10));
+  Object.assign(expected.b, { left: '[', right: ']' });
+  Object.assign(expected.c, { left: '{', right: '}' });
+  expected[';'] = { up: ':' };
+  expected[','] = { left: '<', right: '>' };
+  expected['.'] = {};
+  expected.space = { up: 'arrowup', down: 'arrowdown', left: 'arrowleft', right: 'arrowright' };
   for (const key of layout.rows.flat()) {
-    keys.add(key.key);
+    assert.deepEqual(key.flick, expected[key.key], key.key);
     assert.ok(Object.isFrozen(key.flick));
-    for (const translation of Object.values(key.flick)) {
-      const value = flick_translation_key(translation);
-      assert.equal(parse_shortcut([value]).length, 1);
-      keys.add(value);
-    }
+    assert.equal(key.width ?? 1, 1);
   }
-  for (const char of 'abcdefghijklmnopqrstuvwxyz0123456789`~!@#$%^&*()-_=+[{]}\\|;:\'",<.>/?') assert.ok(keys.has(char), `Missing ${char}`);
-  for (const key of ['space', 'tab', 'enter', 'backspace', 'escape', 'shift', 'control', 'alt', 'meta',
-    'capslock', 'insert', 'delete', 'home', 'end', 'pageup', 'pagedown', 'arrowleft', 'arrowright',
-    'arrowup', 'arrowdown', 'printscreen', 'scrolllock', 'pause', 'numlock', 'contextmenu',
-    ...Array.from({ length: 12 }, (_, i) => `f${i + 1}`)]) assert.ok(keys.has(key), `Missing ${key}`);
+});
+test('virtual uppercase translations preserve case for adapters while using stable key identities', () => {
+  const events = [];
+  press_virtual_key('Q', (event) => events.push(event));
+  assert.deepEqual(events.map(({ type, key, code }) => ({ type, key, code })), [
+    { type: 'keydown', key: 'Q', code: 'Virtual:q' },
+    { type: 'keyup', key: 'Q', code: 'Virtual:q' }
+  ]);
 });
 test('custom layouts mix ordinary and flick keys without sharing mutable translations', () => {
   const source = { key: 'a', flick: { up: { key: '1', label: 'One' } } };

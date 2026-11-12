@@ -29,24 +29,21 @@ const sixty = [
   [named('control', 1.25), named('meta', 1.25), named('alt', 1.25), named('space', 6.25), named('alt', 1.25), named('meta', 1.25), named('contextmenu', 1.25), named('control', 1.25)]
 ];
 
-// Logical US keyboard identities, grouped by character pairs and navigation clusters.
-// Up: digits/punctuation. Right: their shifted symbols. Down: functions/navigation.
-const flickUp = ['1','2','3','4','5','6','7','8','9','0', '-', '=', '[', ']', '\\', ';', "'", ',', '.', '/', '`', 'space', 'enter', 'backspace', 'delete', 'escape'];
-const flickRight = ['!','@','#','$','%','^','&','*','(',')', '_', '+', '{', '}', '|', ':', '"', '<', '>', '?', '~', 'tab', 'shift', 'control', 'alt', 'meta'];
-const flickDown = [...Array.from({ length: 10 }, (_, i) => `f${i + 1}`), 'f11', 'f12', 'capslock', 'contextmenu', 'insert', 'home', 'pageup', 'arrowup', 'end', 'printscreen', 'scrolllock', 'pause', 'numlock', 'arrowleft', 'arrowdown', 'arrowright'];
-const flickLeft = ['escape', 'tab', 'capslock', 'insert', 'home', 'pageup', 'pagedown', 'end', 'delete', 'backspace', 'shift', 'control', 'alt', 'meta', 'enter', 'backspace', 'delete', 'pageup', 'pagedown', 'space', 'space', 'space', 'space', 'enter', 'backspace', 'delete'];
-const compactLabels: Record<string, string> = {
-  control: '⌃', meta: '⌘', alt: '⌥', contextmenu: '☰', insert: 'ins',
-  printscreen: 'prt', scrolllock: 'scr', numlock: 'num', pause: 'Ⅱ'
-};
-const translation = (key: string) => compactLabels[key] ? { key, label: compactLabels[key] } : key;
-let flickIndex = 0;
-const flickAlpha = alpha.map((keys) => keys.map(({ key }) => {
-  const index = flickIndex++;
-  return { key, flick: {
-    up: translation(flickUp[index]), down: translation(flickDown[index]),
-    left: translation(flickLeft[index]), right: translation(flickRight[index])
-  } };
+// Simple 3×10 ortholinear preset. Unspecified directions intentionally stay unbound.
+const flickRows = [Array.from('qwertyuiop'), Array.from('asdfghjkl;'), [...Array.from('zxcvbnm,.'), 'space']];
+const flickAlpha: KeyboardKey[][] = flickRows.map((keys, rowIndex) => keys.map((key, column) => {
+  const flick: Partial<Record<'up' | 'down' | 'left' | 'right', string>> = {};
+  if (/^[a-z]$/.test(key)) flick.down = key.toUpperCase();
+  if (rowIndex === 0) flick.up = String((column + 1) % 10);
+  if (key === 'b') { flick.left = '['; flick.right = ']'; }
+  if (key === 'c') { flick.left = '{'; flick.right = '}'; }
+  if (key === ';') flick.up = ':';
+  if (key === ',') { flick.left = '<'; flick.right = '>'; }
+  if (key === 'space') {
+    flick.up = 'arrowup'; flick.down = 'arrowdown';
+    flick.left = 'arrowleft'; flick.right = 'arrowright';
+  }
+  return { key, flick };
 }));
 
 function copy_key(key: KeyboardKey): KeyboardKey {

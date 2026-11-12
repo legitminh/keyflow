@@ -5,10 +5,10 @@ async function flick(page: Page, key: string, side: 'up' | 'down' | 'left' | 'ri
   const box = (await button.boundingBox())!;
   const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const end = { ...center };
-  if (side === 'up') end.y = box.y - 12;
-  if (side === 'down') end.y = box.y + box.height + 12;
-  if (side === 'left') end.x = box.x - 12;
-  if (side === 'right') end.x = box.x + box.width + 12;
+  if (side === 'up') end.y = box.y - 4;
+  if (side === 'down') end.y = box.y + box.height + 4;
+  if (side === 'left') end.x = box.x - 4;
+  if (side === 'right') end.x = box.x + box.width + 4;
   await page.mouse.move(center.x, center.y);
   await page.mouse.down();
   await page.mouse.move(end.x, end.y, { steps: 5 });
@@ -20,13 +20,21 @@ async function flick(page: Page, key: string, side: 'up' | 'down' | 'left' | 'ri
 test('release position selects each direction exactly once; returning inside selects the center', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('Text playground (virtual keys type here)').check();
-  for (const [side, expected] of [['up', '1'], ['down', 'f1'], ['left', 'escape'], ['right', '!'], ['tap', 'q']] as const) {
-    await flick(page, 'q', side);
+  for (const [key, side, expected] of [
+    ['q', 'up', '1'], ['q', 'down', 'Q'], ['b', 'left', '['], ['b', 'right', ']'],
+    ['c', 'left', '{'], ['c', 'right', '}'], [';', 'up', ':'], [',', 'left', '<'], [',', 'right', '>'],
+    ['space', 'up', 'arrowup'], ['space', 'down', 'arrowdown'],
+    ['space', 'left', 'arrowleft'], ['space', 'right', 'arrowright'], ['q', 'tap', 'q']
+  ] as const) {
+    await flick(page, key, side);
     await expect(page.getByLabel('Last virtual key')).toHaveText(`Last key: ${expected}`);
   }
-  await expect(page.getByLabel('Custom text output')).toHaveText('1!q');
+  await expect(page.getByLabel('Custom text output')).toHaveText('1Q[]{}:<>q');
   await flick(page, 'q', 'up', true);
-  await expect(page.getByLabel('Custom text output')).toHaveText('1!qq');
+  await expect(page.getByLabel('Custom text output')).toHaveText('1Q[]{}:<>qq');
+  await flick(page, 'q', 'right'); // Removed mappings must not emit a character or a tap.
+  await flick(page, '.', 'up');
+  await expect(page.getByLabel('Custom text output')).toHaveText('1Q[]{}:<>qq');
 });
 
 test('cancellation, capture loss and non-primary mouse buttons emit no input', async ({ page }) => {
@@ -56,8 +64,8 @@ test('native keyboard activation and Alt+arrow provide accessible flick input', 
   await q.focus();
   await page.keyboard.press('Enter');
   await page.keyboard.press('Alt+ArrowUp');
-  await page.keyboard.press('Alt+ArrowRight');
-  await expect(page.getByLabel('Custom text output')).toHaveText('q1!');
+  await page.keyboard.press('Alt+ArrowDown');
+  await expect(page.getByLabel('Custom text output')).toHaveText('q1Q');
 });
 
 test('all layouts are selectable from the frame menu and the dock remains the lower half', async ({ page }, testInfo) => {
@@ -67,7 +75,7 @@ test('all layouts are selectable from the frame menu and the dock remains the lo
   const original = await dock.elementHandle();
   for (const [label, count] of [
     ['Alphabet', 26], ['Alphanumeric', 36], ['60% keyboard', 61], ['Ortholinear keyboard', 48],
-    ['16-key keyboard', 16], ['32-key keyboard', 32], ['Mixed flick + regular', 26], ['Flick alpha keyboard', 26]
+    ['16-key keyboard', 16], ['32-key keyboard', 32], ['Mixed flick + regular', 26], ['Flick alpha keyboard', 30]
   ] as const) {
     await page.getByRole('button', { name: 'Choose keyboard', exact: true }).click();
     await page.getByRole('region', { name: 'Keyboard menu' }).getByRole('button', { name: new RegExp(`${label.replace(/[+]/g, '\\+')}( · selected)?$`) }).click();
@@ -113,7 +121,7 @@ test('mixed layouts keep regular taps, customizable flicks and unmapped-directio
   await page.getByRole('button', { name: 'Choose keyboard', exact: true }).click();
   await page.getByRole('region', { name: 'Keyboard menu' }).getByRole('button', { name: /Mixed flick \+ regular/ }).click();
   await page.getByLabel('Text playground (virtual keys type here)').check();
-  await flick(page, 'q', 'down'); // Mixed sample defines only up and right.
+  await flick(page, 'q', 'down'); // Mixed sample defines only up.
   await expect(page.getByLabel('Last virtual key')).toHaveText('Last key: none');
   await flick(page, 'q', 'up');
   await page.locator('.keyboard-dock').getByRole('button', { name: 'a', exact: true }).click();
@@ -128,4 +136,14 @@ test('mixed layouts keep regular taps, customizable flicks and unmapped-directio
   await page.mouse.up();
   await expect(page.getByLabel('Last virtual key')).toHaveText('Last key: a');
   await expect(page.getByLabel('Custom text output')).toHaveText('1a');
+});
+
+
+test('capital flick hints emit uppercase text and still match case-insensitive shortcuts', async ({ page }) => {
+  await page.goto('/');
+  const a = page.locator('.keyboard-dock').getByRole('button', { name: 'a', exact: true });
+  await expect(a.locator('.hint.down')).toHaveText('A');
+  await flick(page, 'a', 'down');
+  await expect(page.getByLabel('Last virtual key')).toHaveText('Last key: A');
+  await expect(page.getByLabel('Page action count')).toHaveText('Page actions: 1');
 });

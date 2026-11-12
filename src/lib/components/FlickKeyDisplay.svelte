@@ -27,8 +27,8 @@
     `Flick ${side}: ${flick_translation_key(flick[side]!)}`).join('. ')}`);
 
   function caption(translation: FlickTranslation) {
-    return typeof translation === 'string' ? format_shortcut([translation], $input_platform)
-      : translation.label ?? format_shortcut([translation.key], $input_platform);
+    const value = typeof translation === 'string' ? { key: translation } : translation;
+    return value.label ?? (value.key.length === 1 ? value.key : format_shortcut([value.key], $input_platform));
   }
   function cancel() {
     const id = pointer;

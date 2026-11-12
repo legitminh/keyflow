@@ -53,7 +53,8 @@ export const keyflow_key_handler: VirtualKeyHandler = (event) => {
 /** A virtual tap is an ordered down/up pair; portable names follow Keyflow's platform. */
 export function press_virtual_key(key: string, handler: VirtualKeyHandler = keyflow_key_handler) {
   const normalized = parse_shortcut([key], get_input_platform())[0];
-  const value = normalized === 'space' ? ' ' : normalized;
+  // Preserve printable casing for text adapters; shortcut matching normalizes independently.
+  const value = key.length === 1 ? key : normalized === 'space' ? ' ' : normalized;
   const event = { key: value, code: `Virtual:${normalized}`, repeat: false, source: 'virtual' as const };
   handler({ ...event, type: 'keydown' });
   handler({ ...event, type: 'keyup' });

@@ -45,7 +45,7 @@ test('mouse virtual keys activate automatic buttons, static buttons and interact
 test('keyboard layouts, optional toolbar, custom adapter and none selection work', async ({ page }) => {
   await page.goto('/frames');
   const select = page.getByLabel('Keyboard layout');
-  for (const [id, count] of [['flick-alpha', 26], ['alpha', 26], ['alphanumeric', 36], ['60%', 61], ['ortholinear', 48], ['grid16', 16], ['grid32', 32]] as const) {
+  for (const [id, count] of [['flick-alpha', 30], ['alpha', 26], ['alphanumeric', 36], ['60%', 61], ['ortholinear', 48], ['grid16', 16], ['grid32', 32]] as const) {
     await select.selectOption(id);
     await expect(page.locator('.keyflow-keyboard').first().locator('.keyflow-key')).toHaveCount(count);
   }

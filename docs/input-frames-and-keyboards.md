@@ -157,7 +157,7 @@ All layouts render text keycaps (bracketed character/symbol labels) with determi
 
 | `variant` / `keyboard_layouts` key | Shape |
 | --- | --- |
-| `flick-alpha` | Three QWERTY letter rows with configurable four-direction translations; [full guide](flick-keyboards.md) |
+| `flick-alpha` | 3×10 ortholinear letters/punctuation/space, uppercase-down and numbers-up; [full guide](flick-keyboards.md) |
 | `alpha` (component default) | QWERTY letters only, 26 keys |
 | `alphanumeric` | Number row and QWERTY letters, 36 keys |
 | `'60%'` | 61-key layout, named keys and variable-width keycaps |
@@ -173,7 +173,7 @@ Mouse, touch, Enter, and Space can activate the native keycap buttons. Pointer p
 
 ### Customize key behavior
 
-Set `onkey` to replace the default adapter. The handler receives `{ type: 'keydown' | 'keyup', key, code, repeat: false, source: 'virtual' }` for each tap. `key` is a normalized key value (`' '` for space); `code` is a stable virtual identity, not a physical KeyboardEvent.code. The component does not inspect the event's consumer.
+Set `onkey` to replace the default adapter. The handler receives `{ type: 'keydown' | 'keyup', key, code, repeat: false, source: 'virtual' }` for each tap. `key` preserves printable character casing (for example `A`); named aliases are normalized and space is `' '`; `code` is a stable virtual identity, not a physical KeyboardEvent.code. The component does not inspect the event's consumer.
 
 Default helpers are exported for custom displays:
 
