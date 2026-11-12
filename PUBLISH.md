@@ -2,6 +2,42 @@
 
 Publish an installable `.tgz` archive as a GitHub Release in `legitminh/keyflow`. The package is not published to the npm registry. The `v0.1.2` release used this process: bump the version, validate and pack, push the source, wait for GitHub CI, then create the release and upload the archive.
 
+## Automated release
+
+From a clean `main` checkout, run:
+
+```sh
+pnpm release          # next patch version
+pnpm release minor    # next minor version
+pnpm release 1.0.0    # explicit newer stable version
+```
+
+The script checks the repository, branch, GitHub write access and remote ancestry. It installs the frozen lockfile, runs type checks/build/unit tests/browser tests, updates package.json and versioned README install links, packs outside the repository, and checks public modules/declarations and the archive checksum. It commits only the two version files, pushes the exact release commit, waits for `check.yml` on that SHA, and publishes a GitHub Release with the archive. Finally it verifies the stable release, tag commit and asset SHA-256. Feature changes must be committed first; it never stages them automatically.
+
+Release notes come from commit messages since the latest release, with installation, validation and documentation links. To use reviewed custom notes for the Changes section:
+
+```sh
+pnpm release minor --notes-file /path/to/changes.md
+```
+
+Preview the next version and notes without changing files, pushing or publishing:
+
+```sh
+pnpm release minor --dry-run
+```
+
+If pushing, CI, uploading or final publication fails after the script has created its `Release vX.Y.Z` commit, resolve the problem and rerun without another version bump:
+
+```sh
+pnpm release --resume
+```
+
+Resume requires that exact clean release commit at HEAD. It revalidates the source, rebuilds the archive and checks CI; it can finish a matching draft or upload a missing asset, and refuses to overwrite a mismatched archive or tag. An already published matching release is verified instead of replaced. Failures before a release commit preserve any version-file changes for inspection; the script does not reset user work.
+
+Requirements: Node 24, the pinned pnpm version, Git, GitHub CLI, and browser-test dependencies. `CHROME_PATH` is respected; installed Chrome is detected automatically on macOS/Linux, otherwise Playwright's installed browser is used. Local browser validation uses three workers. The script uses the existing GitHub CLI account when authorized, or the Git-credential fallback documented below, without printing/saving tokens or changing the default account.
+
+The manual procedure below remains available for inspection and troubleshooting. Releases are still GitHub archives, not npm publications. Local linking and Notework's commit-pin workflow in [docs/development.md](docs/development.md) remain available without releases.
+
 ## 1. Check access and the next version
 
 Run from the repository root with Node.js 24, pnpm 9.15.0 (pinned in `package.json`), Git, and GitHub CLI installed.
