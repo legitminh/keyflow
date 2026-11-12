@@ -42,6 +42,10 @@ pnpm demo
 
 The standalone Vite demo is in `examples/demo`. The default `/` (also `/stack`) provides tablet-sized flick keys and a keyboard-selection frame menu above a persistent half-screen dock. `/frames` adds keyboard customization examples. `/flow` retains shortcut controls, text input, themes, zoom, native scrolling, and anchor navigation.
 
+## Develop alongside Notework
+
+For rapid iteration, run `pnpm dev:package` in this repository and link Keyflow into your local Notework checkout once. Package output then rebuilds as you edit; no release or version bump is needed. Notework already supports Git-commit updates with `pnpm update:keyflow` for shared builds. See the [local development workflow](docs/development.md) for the exact commands and how to switch back to a pinned dependency.
+
 ## Use in another website
 
 Install the archive from GitHub Releases using the command above; the package is not published to npm. To build an installable archive locally:
