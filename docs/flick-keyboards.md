@@ -16,16 +16,17 @@ Flick keys extend the existing virtual keyboard input path. A gesture selects on
 
 ```text
 q w e r t y u i o p
-a s d f g h j k l ;
+a s d f g h j k l ⎋
 z x c v b n m , . ␣
 ```
 
-Tapping enters the primary character (`␣` is Space). The only flick assignments are:
+Tapping enters the primary character (`␣` is Space and `⎋` is Escape). The only flick assignments are:
 
 - Top-row up: 1–0, from Q through P.
 - Every letter down: its uppercase character.
 - B left/right: `[` / `]`; C left/right: `{` / `}`.
-- Semicolon up: `:`; comma left/right: `<` / `>`.
+- Escape up/down/left/right: tilde (`~`), backtick, Backspace and Tab.
+- Comma left/right: `<` / `>`.
 - Space up/down/left/right: the corresponding arrow key.
 
 All other directions are unbound and cancel. The period key has no flick assignments. Printable casing is preserved in virtual input events and text adapters, so down from A emits `A`; InputFrame shortcut matching remains case-insensitive. Directional hints preserve uppercase too.
@@ -121,7 +122,7 @@ The dock styling belongs to the demo, so library clients can choose their own pl
 | <code>j</code> | — | <code>J</code> | — | — |
 | <code>k</code> | — | <code>K</code> | — | — |
 | <code>l</code> | — | <code>L</code> | — | — |
-| <code>;</code> | <code>:</code> | — | — | — |
+| <code>escape</code> | <code>~</code> | <code>`</code> | <code>backspace</code> | <code>tab</code> |
 | <code>z</code> | — | <code>Z</code> | — | — |
 | <code>x</code> | — | <code>X</code> | — | — |
 | <code>c</code> | — | <code>C</code> | <code>{</code> | <code>}</code> |

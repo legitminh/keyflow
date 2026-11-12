@@ -22,4 +22,4 @@ The default demo's menu selects seven built-in keyboards plus a mixed sample. A 
 
 Button feedback now shares one brief activation highlight across physical keys, virtual keys, direct clicks and touch taps. Held pointer presses use the same color; masked frames cannot highlight through activation. Browser coverage includes automatic/static buttons and quick down/up pairs.
 
-The flick-alpha preset is now a minimal 3×10 ortholinear grid: qwertyuiop / asdfghjkl; / zxcvbnm,. plus Space. Only requested numeric-up, uppercase-down, bracket/brace, colon, angle-bracket and Space-arrow gestures are defined. Unused directions cancel. Printable virtual input casing is preserved while frame shortcut matching remains case-insensitive.
+The flick-alpha preset is now a minimal 3×10 ortholinear grid: qwertyuiop / asdfghjkl plus Escape / zxcvbnm,. plus Space. Only requested numeric-up, uppercase-down, bracket/brace, Escape editing, angle-bracket and Space-arrow gestures are defined. Unused directions cancel. Printable virtual input casing is preserved while frame shortcut matching remains case-insensitive.

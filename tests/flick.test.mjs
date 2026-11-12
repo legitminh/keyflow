@@ -20,13 +20,13 @@ test('diagonal flicks choose normalized overrun, with vertical ties', () => {
 test('flick alpha has exactly the requested 3×10 grid and no extra mappings', () => {
   const layout = keyboard_layouts['flick-alpha'];
   assert.deepEqual(layout.rows.map((row) => row.map((key) => key.key)), [
-    [...'qwertyuiop'], [...'asdfghjkl;'], [...'zxcvbnm,.', 'space']
+    [...'qwertyuiop'], [...'asdfghjkl', 'escape'], [...'zxcvbnm,.', 'space']
   ]);
   const expected = Object.fromEntries([...'abcdefghijklmnopqrstuvwxyz'].map((key) => [key, { down: key.toUpperCase() }]));
   [...'qwertyuiop'].forEach((key, index) => expected[key].up = String((index + 1) % 10));
   Object.assign(expected.b, { left: '[', right: ']' });
   Object.assign(expected.c, { left: '{', right: '}' });
-  expected[';'] = { up: ':' };
+  expected.escape = { up: '~', down: '`', left: 'backspace', right: 'tab' };
   expected[','] = { left: '<', right: '>' };
   expected['.'] = {};
   expected.space = { up: 'arrowup', down: 'arrowdown', left: 'arrowleft', right: 'arrowright' };

@@ -30,14 +30,16 @@ const sixty = [
 ];
 
 // Simple 3×10 ortholinear preset. Unspecified directions intentionally stay unbound.
-const flickRows = [Array.from('qwertyuiop'), Array.from('asdfghjkl;'), [...Array.from('zxcvbnm,.'), 'space']];
+const flickRows = [Array.from('qwertyuiop'), [...Array.from('asdfghjkl'), 'escape'], [...Array.from('zxcvbnm,.'), 'space']];
 const flickAlpha: KeyboardKey[][] = flickRows.map((keys, rowIndex) => keys.map((key, column) => {
   const flick: Partial<Record<'up' | 'down' | 'left' | 'right', string>> = {};
   if (/^[a-z]$/.test(key)) flick.down = key.toUpperCase();
   if (rowIndex === 0) flick.up = String((column + 1) % 10);
   if (key === 'b') { flick.left = '['; flick.right = ']'; }
   if (key === 'c') { flick.left = '{'; flick.right = '}'; }
-  if (key === ';') flick.up = ':';
+  if (key === 'escape') {
+    flick.up = '~'; flick.down = '`'; flick.left = 'backspace'; flick.right = 'tab';
+  }
   if (key === ',') { flick.left = '<'; flick.right = '>'; }
   if (key === 'space') {
     flick.up = 'arrowup'; flick.down = 'arrowdown';

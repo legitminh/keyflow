@@ -22,19 +22,19 @@ test('release position selects each direction exactly once; returning inside sel
   await page.getByLabel('Text playground (virtual keys type here)').check();
   for (const [key, side, expected] of [
     ['q', 'up', '1'], ['q', 'down', 'Q'], ['b', 'left', '['], ['b', 'right', ']'],
-    ['c', 'left', '{'], ['c', 'right', '}'], [';', 'up', ':'], [',', 'left', '<'], [',', 'right', '>'],
+    ['c', 'left', '{'], ['c', 'right', '}'], ['escape', 'up', '~'], ['escape', 'down', '`'], ['escape', 'right', 'tab'], [',', 'left', '<'], [',', 'right', '>'],
     ['space', 'up', 'arrowup'], ['space', 'down', 'arrowdown'],
     ['space', 'left', 'arrowleft'], ['space', 'right', 'arrowright'], ['q', 'tap', 'q']
   ] as const) {
     await flick(page, key, side);
     await expect(page.getByLabel('Last virtual key')).toHaveText(`Last key: ${expected}`);
   }
-  await expect(page.getByLabel('Custom text output')).toHaveText('1Q[]{}:<>q');
+  await expect(page.getByLabel('Custom text output')).toHaveText('1Q[]{}~`<>q');
   await flick(page, 'q', 'up', true);
-  await expect(page.getByLabel('Custom text output')).toHaveText('1Q[]{}:<>qq');
+  await expect(page.getByLabel('Custom text output')).toHaveText('1Q[]{}~`<>qq');
   await flick(page, 'q', 'right'); // Removed mappings must not emit a character or a tap.
   await flick(page, '.', 'up');
-  await expect(page.getByLabel('Custom text output')).toHaveText('1Q[]{}:<>qq');
+  await expect(page.getByLabel('Custom text output')).toHaveText('1Q[]{}~`<>qq');
 });
 
 test('cancellation, capture loss and non-primary mouse buttons emit no input', async ({ page }) => {
