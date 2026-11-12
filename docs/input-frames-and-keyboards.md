@@ -134,7 +134,7 @@ One Keyflow application per page remains the supported model. These frames are s
 
 ## Text entry
 
-Use `TextBox` for a button-like entry point that pushes a private editing frame. It supports independent entry/exit triggers, a native textarea for physical/OS input, and an adapter for virtual selection, arrow, editing and clipboard commands. See the [TextBox guide](textbox.md).
+Use `TextBox` for a button-like entry point that pushes a private editing frame. It supports independent entry/exit triggers, a native textarea for physical/OS input, and an adapter for virtual selection, arrows and text editing, while native clipboard/browser shortcuts remain untouched. See the [TextBox guide](textbox.md).
 
 ## Virtual keyboard: input space
 

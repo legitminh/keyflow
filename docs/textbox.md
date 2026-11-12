@@ -26,15 +26,17 @@ Omit `enterTrigger` to assign an automatic shortcut, like Button. `priority` con
 
 ## Editing behavior
 
-- Physical typing, mouse/touch selection, native clipboard shortcuts, IME composition and OS emoji input use an actual textarea. No simulated KeyboardEvents are used to type text.
-- Virtual characters, flick translations, Backspace/Delete, Enter, Tab, arrows and Home/End edit that same textarea and its current selection. Enter inserts a newline; Tab inserts a tab character while editing.
-- Virtual horizontal movement and deletion use Unicode grapheme boundaries, preserving emoji sequences and combining characters. Up/down retain the logical character column across newline-separated lines. `wrap="off"` is the default so physical and virtual vertical navigation refer to the same visible lines; `soft`/`hard` wrapping is available, with virtual up/down still following logical lines.
-- Physical Shift works with virtual arrows/characters. The editor's Shift control and virtual Shift key toggle selection extension for arrows and uppercase/shifted symbols for the next character. Typing a character consumes virtual Shift; arrow movements retain it until toggled off. Virtual Caps Lock is supported where a layout provides it. Virtual Control/Meta/Alt apply to the next editing key, including word movement and standard select-all/copy/cut/paste/undo/redo commands.
-- The editing toolbar offers Copy, Cut, Paste, Undo, Redo, Select all, Shift and Enter without taking away the textarea's selection. Clipboard buttons use the browser Clipboard API, subject to its normal permission/secure-context requirements. A failed operation reports a status message; native clipboard commands and the OS selection/paste UI remain available.
-- Native and virtual changes share a bounded undo/redo history. Composition is grouped as an edit. Pending clipboard reads are ignored if the selection/content changes or the editing session ends before completion.
-- Escape during IME composition is left to the OS/browser. The configured exit trigger resumes after composition. A frame-manager transition or component disable/unmount can also end the editing scope as part of application cleanup.
+TextBox renders a normal textarea without an editing toolbar. Physical typing, mouse/touch selection, copy/paste/cut, printing, native undo/redo, Tab navigation, IME composition and OS emoji input keep their browser behavior. Only the configured exit binding is intercepted. Clicking elsewhere can move focus normally while the editing frame remains active until its exit trigger or application cleanup.
 
-The value is retained when exiting and reopening. A child InputFrame can temporarily mask the editor—for example, to select a different keyboard. Popping the child restores editing focus and selection. TextBox owns and disposes its private frame; clients do not need to manage it manually.
+Virtual characters, flick translations, Backspace/Delete, Enter, Tab, arrows and Home/End adapt to the textarea's existing selection. Virtual Enter inserts a newline; virtual Tab inserts a tab. Physical Tab retains ordinary focus navigation. Native clipboard and browser commands, including Cmd/Ctrl+C, V, X, P and Z, are never replaced by library clipboard or history handlers.
+
+Virtual horizontal movement and deletion use Unicode grapheme boundaries, preserving emoji sequences and combining characters. Virtual up/down preserve the logical character column across newline-separated lines. The textarea defaults to normal `wrap="soft"`; virtual vertical movement follows logical lines, while physical arrows use native visual-line behavior. `wrap="off"` is available when a client wants unwrapped lines.
+
+Physical Shift works with virtual arrows and characters. Where a keyboard layout provides Shift/Caps Lock, virtual modifiers affect selection and character case. There are no additional Shift, Enter, clipboard, or history buttons attached to TextBox. Use your physical keyboard or choose an appropriate virtual layout for those keys.
+
+Virtual text insertion uses the browser's native edit command where supported to preserve native undo history, with a textarea selection-API fallback. Physical undo/redo is always left to the browser. TextBox does not access the Clipboard API or request clipboard permissions. Its virtual adapter never synthesizes trusted browser/OS shortcuts.
+
+The value is retained when exiting and reopening. A child InputFrame can temporarily mask the editor—for example, to select a different keyboard. Popping the child restores editing focus and selection. TextBox owns and disposes its private frame; clients do not manage it manually. Escape during composition remains available to the OS/browser, and the configured exit trigger resumes after composition.
 
 ## Props
 
@@ -48,11 +50,10 @@ The value is retained when exiting and reopening. A child InputFrame can tempora
 | `placeholder` | Empty button/textarea prompt; default `'Click to edit'`. |
 | `rows` | Textarea height in rows; default `4`. |
 | `disabled` | Disable entry and end an active editing session. |
-| `wrap` | `'off'` (default), `'soft'`, or `'hard'`. |
+| `wrap` | `'soft'` (default), `'off'`, or `'hard'`. |
 | `onenter(frame)` | Called after entry and focus; receives the editing frame reference. |
 | `onexit(value)` | Called when a mounted editing session ends. |
 | `oninput(event)` | Native or virtual input notification; value binding stays synchronized. |
-| `onclipboarderror(error)` | Optional notification for failed Clipboard API operations. |
 | `class` and textarea attributes | Layout/style and native attributes such as `spellcheck`, `maxlength`, `readonly`, or `inputmode`. |
 
 Set `inputmode="none"` when a client wants to suppress the device keyboard in favor of its custom keyboard. Leave native input enabled when users need the device's typing/emoji UI. TextBox does not open an OS emoji picker itself.
@@ -65,6 +66,6 @@ TextBox uses this narrow hook to check its exit binding before allowing native e
 
 ## Try the demo
 
-Run `pnpm demo`. On `/` (also `/stack`), click **Keyboard text editor** or input T. Type physically, tap/flick the docked keyboard, select text with a mouse, or use the editor controls. Tap Escape to return. Expand the custom-trigger example to test primary-modifier+K entry and primary-modifier+Enter exit.
+Run `pnpm demo`. On `/` (also `/stack`), click **Keyboard text editor** or input T. Type physically, tap/flick the docked keyboard, select text with a mouse, and use native clipboard/browser shortcuts. Tap Escape to return. Expand the custom-trigger example to test primary-modifier+K entry and primary-modifier+Enter exit.
 
-The flick-alpha Escape key replaces the former semicolon slot: tap Escape exits, left flick deletes backward, right flick inserts Tab, up flick types `~`, and down flick types a backtick. Space flicks move the caret in the corresponding direction. Use the editor's Enter control for a newline without adding another default flick mapping.
+The flick-alpha Escape key replaces the former semicolon slot: tap Escape exits, left flick deletes backward, right flick inserts Tab, up flick types `~`, and down flick types a backtick. Space flicks move the caret in the corresponding direction. For a virtual Enter key, choose a layout such as 60%; physical Enter works normally in every layout.

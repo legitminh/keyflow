@@ -62,7 +62,9 @@ test('native keyboard activation and Alt+arrow provide accessible flick input', 
   const q = page.locator('.keyboard-dock').getByRole('button', { name: 'q', exact: true });
   await q.focus();
   await page.keyboard.press('Enter');
+  await q.focus();
   await page.keyboard.press('Alt+ArrowUp');
+  await q.focus();
   await page.keyboard.press('Alt+ArrowDown');
   await expect(page.getByRole('textbox', { name: 'Keyboard text editor', exact: true })).toHaveValue('q1Q');
 });

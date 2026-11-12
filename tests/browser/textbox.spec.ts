@@ -1,7 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 
 const field = (page: Page) => page.getByRole('textbox', { name: 'Keyboard text editor', exact: true });
-const tools = (page: Page) => page.getByRole('toolbar', { name: 'Keyboard text editor editing tools' });
 const key = (page: Page, name: string) => page.locator('.keyboard-dock').getByRole('button', { name, exact: true });
 async function flick(page: Page, name: string, side: 'up' | 'down' | 'left' | 'right') {
   const box = (await key(page, name).boundingBox())!;
@@ -27,7 +26,7 @@ test('entry trigger/click pushes an editing frame; blur does not exit; Escape pr
   await page.keyboard.insertText('日本語 👩‍💻');
   await expect(field(page)).toHaveValue('a\ne日本語 👩‍💻');
   await page.getByRole('heading', { name: 'Keyflow · touch & flick' }).click();
-  await expect(field(page)).toBeFocused();
+  await expect(field(page)).not.toBeFocused();
   await expect(page.getByLabel('Frame stack')).toHaveText('root → textbox');
   await key(page, 'escape').click();
   await expect(page.getByLabel('Frame stack')).toHaveText('root');
@@ -40,13 +39,13 @@ test('entry trigger/click pushes an editing frame; blur does not exit; Escape pr
 test('virtual arrows, Shift selection, Unicode-aware backspace, Tab and Enter edit the real selection', async ({ page }) => {
   await enter(page);
   await field(page).fill('ab');
-  await tools(page).getByRole('button', { name: 'Shift', exact: true }).click();
+  await page.keyboard.down('Shift');
   await flick(page, 'space', 'left');
   await expect.poll(() => field(page).evaluate((el: HTMLTextAreaElement) => [el.selectionStart, el.selectionEnd])).toEqual([1, 2]);
   await key(page, 'q').click();
   await expect(field(page)).toHaveValue('aQ');
-  await expect(tools(page).getByRole('button', { name: 'Shift', exact: true })).toHaveAttribute('aria-pressed', 'false');
-  await tools(page).getByRole('button', { name: 'Enter', exact: true }).click();
+  await page.keyboard.up('Shift');
+  await page.keyboard.press('Enter');
   await flick(page, 'escape', 'right');
   await expect(field(page)).toHaveValue('aQ\n\t');
   await field(page).fill('x👨‍👩‍👧‍👦e\u0301y');
@@ -81,34 +80,35 @@ test('native Shift and mouse selection are shared with virtual editing', async (
   await expect(field(page)).toHaveValue(selection.value.slice(0, selection.start) + 'b' + selection.value.slice(selection.end));
 });
 
-test('copy/cut/paste controls preserve selection and share undo/redo with native typing', async ({ page }) => {
-  await page.addInitScript(() => {
-    let clipboard = '';
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
-      readText: async () => clipboard,
-      writeText: async (value: string) => { clipboard = value; }
-    } });
-  });
+test('clipboard, print and other native shortcuts are not prevented; no editing toolbar is added', async ({ page }) => {
   await enter(page);
-  await field(page).fill('hello😀');
-  await field(page).evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(5, 7));
-  await tools(page).getByRole('button', { name: 'Copy', exact: true }).click();
-  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('😀');
-  await tools(page).getByRole('button', { name: 'Cut', exact: true }).click();
-  await expect(field(page)).toHaveValue('hello');
-  await tools(page).getByRole('button', { name: 'Paste', exact: true }).click();
-  await expect(field(page)).toHaveValue('hello😀');
-  await tools(page).getByRole('button', { name: 'Undo', exact: true }).click();
-  await expect(field(page)).toHaveValue('hello');
-  await tools(page).getByRole('button', { name: 'Redo', exact: true }).click();
-  await expect(field(page)).toHaveValue('hello😀');
-  await page.keyboard.press('Control+z');
-  await expect(field(page)).toHaveValue('hello');
-  await page.keyboard.press('Control+Shift+z');
-  await expect(field(page)).toHaveValue('hello😀');
-  await page.keyboard.type('!');
-  await tools(page).getByRole('button', { name: 'Undo', exact: true }).click();
-  await expect(field(page)).toHaveValue('hello😀');
+  await expect(page.getByRole('toolbar')).toHaveCount(0);
+  await field(page).fill('untouched');
+  const prevented = await field(page).evaluate((el: HTMLTextAreaElement) => {
+    const result = [];
+    for (const modifier of ['ctrlKey', 'metaKey']) {
+      for (const key of ['c', 'v', 'x', 'p', 'a', 'z', 'y', 'f', 's']) {
+        for (const type of ['keydown', 'keyup']) {
+          const event = new KeyboardEvent(type, { key, code: `Key${key.toUpperCase()}`, [modifier]: true,
+            bubbles: true, cancelable: true });
+          el.dispatchEvent(event);
+          if (event.defaultPrevented) result.push(`${modifier}:${key}:${type}`);
+        }
+      }
+    }
+    return result;
+  });
+  expect(prevented).toEqual([]);
+  await expect(field(page)).toHaveValue('untouched');
+  const primary = await page.evaluate(() => /Mac|iPhone|iPad|iPod/.test(navigator.platform + navigator.userAgent) ? 'Meta' : 'Control');
+  await page.keyboard.press(`${primary}+a`);
+  await page.keyboard.type('native');
+  await key(page, 'a').click();
+  await expect(field(page)).toHaveValue('nativea');
+  await page.keyboard.press(`${primary}+z`);
+  await expect(field(page)).not.toHaveValue('nativea');
+  await page.keyboard.press(`${primary}+Shift+z`);
+  await expect(field(page)).toHaveValue('nativea');
 });
 
 test('custom entry and exit sequences differ; Escape does not exit the custom editor', async ({ page }) => {
@@ -159,33 +159,6 @@ test('composition input and emoji remain native; composing Escape does not exit'
   await expect(page.getByRole('button', { name: 'Keyboard text editor', exact: true })).toContainText('日本語 👩🏽‍💻');
 });
 
-test('pending clipboard reads cannot edit a later session; failed reads keep editing active', async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
-      readText: () => new Promise<string>((resolve) => {
-        (window as Window & { finishPaste?: (text: string) => void }).finishPaste = resolve;
-      })
-    } });
-  });
-  await enter(page);
-  await tools(page).getByRole('button', { name: 'Paste', exact: true }).click();
-  await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Keyboard text editor', exact: true }).click();
-  await page.evaluate(async () => {
-    (window as Window & { finishPaste?: (text: string) => void }).finishPaste?.('late data');
-    await Promise.resolve();
-  });
-  await expect(field(page)).toHaveValue('');
-  await page.evaluate(() => {
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
-      readText: async () => { throw new Error('Denied in test'); }
-    } });
-  });
-  await tools(page).getByRole('button', { name: 'Paste', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Clipboard access failed');
-  await expect(field(page)).toBeFocused();
-});
-
 test('physical typing resumes in the editor after native activation of a virtual key', async ({ page }) => {
   await enter(page);
   await key(page, 'q').focus();
@@ -204,7 +177,6 @@ test('virtual edits honor native readonly/maxlength constraints', async ({ page 
   await expect(field(page)).toHaveValue('abc');
   await field(page).evaluate((el: HTMLTextAreaElement) => { el.readOnly = true; });
   await flick(page, 'escape', 'left');
-  await tools(page).getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(field(page)).toHaveValue('abc');
 });
 
@@ -217,4 +189,16 @@ test('tablet editor remains above the persistent keyboard', async ({ page }, tes
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.y + box.height).toBeLessThanOrEqual(dock.y);
   await page.screenshot({ path: testInfo.outputPath('tablet-editor.png') });
+});
+
+
+test('physical Tab keeps normal focus navigation without ending the editing frame', async ({ page }) => {
+  await enter(page);
+  await field(page).fill('text');
+  await page.keyboard.press('Tab');
+  await expect(field(page)).not.toBeFocused();
+  await expect(field(page)).toHaveValue('text');
+  await expect(page.getByLabel('Frame stack')).toHaveText('root → textbox');
+  await page.keyboard.press('Shift+Tab');
+  await expect(field(page)).toBeFocused();
 });
