@@ -132,6 +132,10 @@ Hardware events are filtered for form editing and composition, then enter the sh
 
 One Keyflow application per page remains the supported model. These frames are states within that application. Existing clients with one root still bind to it; migrate temporary UIs by creating persistent frame references and moving their open/back actions to manager pushes/pops instead of removing/re-adding page registrations.
 
+## Text entry
+
+Use `TextBox` for a button-like entry point that pushes a private editing frame. It supports independent entry/exit triggers, a native textarea for physical/OS input, and an adapter for virtual selection, arrow, editing and clipboard commands. See the [TextBox guide](textbox.md).
+
 ## Virtual keyboard: input space
 
 The keyboard represents **keys**, independent of the current frame, its InputTokens, or the number of Interactables. It never registers an action or allocates shortcuts. Pressing a displayed key sends input through the same dispatcher used by hardware; the active frame resolves that input to an automatic or static token. Ordinary native HTML buttons continue to use their own click handlers; Keyflow `Button` and `Interactable` participate in shortcut routing.

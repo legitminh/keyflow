@@ -21,6 +21,8 @@ The new `VirtualKeyboard` provides color-coded text keycaps in flick-alpha, alph
 
 Read the [migration guide and complete API examples](docs/input-frames-and-keyboards.md) before updating a client. The default demo (`/`, also `/stack`) starts with flick alpha in a persistent lower-half keyboard dock; E/Choose keyboard opens the frame menu for all seven layouts plus a mixed example. See the [flick guide and complete mapping](docs/flick-keyboards.md), or `/frames` for more customization examples. The [implementation plan](docs/implementation-plan.md) records the scope and validation strategy.
 
+`TextBox` adds an input-owning editing frame with configurable entry/exit shortcuts, native textarea selection/IME/emoji support, and shared physical/virtual editing. In the demo, click **Keyboard text editor** or press T, then exit with Escape. See the [TextBox guide](docs/textbox.md).
+
 ## Add to your project
 ```sh
 pnpm add https://github.com/legitminh/keyflow/releases/download/v0.3.0/legitminh-keyflow-0.3.0.tgz

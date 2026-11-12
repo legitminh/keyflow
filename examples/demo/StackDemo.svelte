@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import {
-    Keyflow, InputFrame, Button, StaticButton, ActiveKeyboard,
+    Keyflow, InputFrame, Button, StaticButton, ActiveKeyboard, TextBox,
     create_input_frame, input_frame_manager, create_keyboard_store,
     keyboard_layouts, keyflow_key_handler, type KeyboardLayout, type VirtualKeyInput
   } from '../../src/lib/index.js';
@@ -30,7 +30,6 @@
   let selections = $state(0);
   let text = $state('');
   let lastKey = $state('none');
-  let textMode = $state(false);
   function choose(id: string) {
     keyboards.select(id);
     selections++;
@@ -39,13 +38,8 @@
   function handleKey(event: VirtualKeyInput) {
     if (event.type === 'keyup') {
       lastKey = event.key === ' ' ? 'space' : event.key;
-      if (textMode) {
-        if (event.key === 'backspace') text = text.slice(0, -1);
-        else if (event.key === 'enter') text += '\n';
-        else if (event.key.length === 1) text += event.key;
-      }
     }
-    if (!textMode) keyflow_key_handler(event);
+    keyflow_key_handler(event);
   }
   onDestroy(() => menu.dispose());
 </script>
@@ -80,8 +74,13 @@
         </div>
       </section>
     </InputFrame>
-    <label class="mode"><input type="checkbox" bind:checked={textMode} /> Text playground (virtual keys type here)</label>
-    <pre aria-label="Custom text output">{text || '(empty)'}</pre>
+    <TextBox bind:value={text} enterTrigger="t" label="Keyboard text editor"
+      placeholder="Click here or press T to edit. Escape returns to the page." rows={3} />
+    <details>
+      <summary>Custom entry/exit trigger example</summary>
+      <TextBox enterTrigger={['ctrl', 'k']} exitTrigger={['ctrl', 'enter']} label="Command text editor"
+        placeholder="Primary modifier + K enters; primary modifier + Enter exits." rows={2} />
+    </details>
     <a href="/flow">Scrolling demo</a> · <a href="/frames">More keyboard examples</a>
   </main>
 
@@ -91,7 +90,6 @@
       {#snippet toolbar()}
         <strong>{$activeKeyboard?.label}</strong>
         <button type="button" onclick={() => {
-          textMode = false;
           if ($activeFrame === menu) input_frame_manager.pop();
           else input_frame_manager.push(menu);
         }}>{$activeFrame === menu ? 'Back to page' : 'Choose keyboard'}</button>
@@ -109,8 +107,6 @@
   .status, .controls { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin-block: .75rem; }
   .panel { border: 1px solid currentColor; margin-block: .75rem; padding: .75rem; }
   .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .5rem; }
-  .mode { display: block; margin-block: .75rem; }
-  pre { min-height: 2rem; white-space: pre-wrap; }
   main :global(button) { font-size: 1rem; line-height: 1.5; }
   main :global(button:disabled) { opacity: .4; cursor: default; }
   .keyboard-dock { position: fixed; inset: auto 0 0; height: 50dvh; box-sizing: border-box; z-index: 10;

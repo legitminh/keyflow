@@ -73,3 +73,5 @@ export {
   resolve_flick_direction, flick_translation_key,
   type FlickDirection, type FlickTranslation, type FlickBindings, type FlickBounds
 } from './flick.js';
+export { default as TextBox } from './components/TextBox.svelte';
+export { set_input_frame_handler, type FrameInputHandler } from './input-events.js';

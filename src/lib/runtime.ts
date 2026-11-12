@@ -2,7 +2,7 @@ import { min_box } from './stores/layout.svelte.js';
 import { lockstep_scrolling } from './stores/scroll.svelte.js';
 import { themes, set_theme_id, type Theme } from './stores/theme.svelte.js';
 import { readPreference, setStoragePrefix } from './storage.js';
-import { dispatch_key_input, reset_input } from './input-events.js';
+import { dispatch_key_input, reset_input, has_input_frame_handler } from './input-events.js';
 import { set_available_keys } from './stores/input.js';
 import { configure_input_frames } from './input-frames.js';
 import { detect_shortcut_platform, type ShortcutPlatform } from './shortcuts.js';
@@ -49,11 +49,11 @@ export function initializeKeyflow(options: KeyflowOptions = {}) {
           (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
       );
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.defaultPrevented || event.isComposing || isEditing(event)) return reset_input();
+    if (event.defaultPrevented || event.isComposing || (isEditing(event) && !has_input_frame_handler())) return reset_input();
     if (dispatch_key_input('keydown', event)) event.preventDefault();
   };
   const onKeyUp = (event: KeyboardEvent) => {
-    if (event.defaultPrevented || event.isComposing || isEditing(event)) return reset_input();
+    if (event.defaultPrevented || event.isComposing || (isEditing(event) && !has_input_frame_handler())) return reset_input();
     if (dispatch_key_input('keyup', event)) event.preventDefault();
   };
   const onVisibilityChange = () => { if (document.hidden) reset_input(); };

@@ -11,7 +11,7 @@
 
 All six steps are implemented. The public package exports the frame/controller APIs, virtual input adapters, seven built-in layouts (including flick alpha), composable keyboard displays, and project keyboard stores. The default `/` (also `/stack`) now uses the frame stack to choose every keyboard layout in a persistent half-screen dock; `/frames` covers more keyboard layouts and custom input adapters; the migration guide recommends replacing deregistration bookkeeping with frame scopes.
 
-Validation: `pnpm check` (zero errors/warnings), `pnpm build`, 46 unit tests, and 29 browser tests passed. Browser tests ran with the installed Google Chrome via `CHROME_PATH`, including touch emulation and the existing scrolling/static-shortcut regressions. Equal-priority route restoration, frame-local static reservations, reusable references (including Svelte bindings), direct-click blocking, and consuming transition signals exactly once have dedicated regression coverage.
+Validation: `pnpm check` (zero errors/warnings), `pnpm build`, 47 unit tests, and 40 browser tests passed. Browser tests ran with the installed Google Chrome via `CHROME_PATH`, including touch emulation and the existing scrolling/static-shortcut regressions. Equal-priority route restoration, frame-local static reservations, reusable references (including Svelte bindings), direct-click blocking, and consuming transition signals exactly once have dedicated regression coverage.
 
 
 ## Flick-key extension
@@ -23,3 +23,10 @@ The default demo's menu selects seven built-in keyboards plus a mixed sample. A 
 Button feedback now shares one brief activation highlight across physical keys, virtual keys, direct clicks and touch taps. Held pointer presses use the same color; masked frames cannot highlight through activation. Browser coverage includes automatic/static buttons and quick down/up pairs.
 
 The flick-alpha preset is now a minimal 3×10 ortholinear grid: qwertyuiop / asdfghjkl plus Escape / zxcvbnm,. plus Space. Only requested numeric-up, uppercase-down, bracket/brace, Escape editing, angle-bracket and Space-arrow gestures are defined. Unused directions cancel. Printable virtual input casing is preserved while frame shortcut matching remains case-insensitive.
+
+
+## TextBox feature
+
+Add a button-like TextBox with independent entry/exit shortcuts and an owned editing InputFrame. A narrow per-frame input-handler hook routes physical input to native textarea behavior and virtual signals to actual selection edits. Support Unicode graphemes, IME/OS input, Shift selection, logical-line arrows, clipboard controls, shared undo/redo, and editing restoration across keyboard-menu child frames. Replace the demo's simple text playground with the component and document the API.
+
+The prior simplified flick mapping and the Escape editing gestures were each committed after validation. TextBox validation passes type checks with zero warnings, package build, 47 unit tests, and all 40 Chrome browser tests with three workers. Coverage includes native/virtual selection, grapheme deletion, clipboard operations and delayed-read cancellation, undo/redo, custom triggers, composition, physical typing after virtual-key focus, native readonly/maxlength constraints, and tablet editor placement above the dock.

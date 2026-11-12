@@ -87,7 +87,7 @@
   onpointerdown={start} onpointermove={move} onpointerup={release}
   onpointercancel={(event) => { if (event.pointerId === pointer) cancel(); }}
   onlostpointercapture={(event) => { if (event.pointerId === pointer) cancel(); }}
-  onclick={accessibleClick} onkeydown={keydown}>
+  onclick={accessibleClick} onkeydown={keydown} oncontextmenu={(event) => event.preventDefault()}>
   <span class="center" class:selected={dragging && direction === null} aria-hidden="true">
     {#if children}{@render children()}{:else}{text}{/if}
   </span>

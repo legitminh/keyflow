@@ -228,3 +228,24 @@ test('manager supports reference transitions, replace, reset, reuse, and permane
   assert.throws(() => input_frame_manager.go_to(b), /disposed/);
   assert.throws(() => input_frame_manager.replace(b), /disposed/);
 });
+
+test('an input-owning frame receives device signals without leaking into automatic bindings', async () => {
+  const { set_input_frame_handler } = await import('../dist/input-events.js');
+  let calls = 0;
+  const owner = frame();
+  owner.register(token(() => calls++));
+  const received = [];
+  const cleanup = set_input_frame_handler(owner, (type, event) => {
+    received.push([type, event.key, event.source]);
+    return false; // Leave native default editing intact, without falling through to tokens.
+  });
+  owner.activate();
+  press_virtual_key('a');
+  assert.equal(calls, 0);
+  assert.deepEqual(received, [['keydown', 'a', 'virtual'], ['keyup', 'a', 'virtual']]);
+  assert.throws(() => set_input_frame_handler(owner, () => true), /already/);
+  cleanup(); cleanup();
+  const route = get(map_key_route).values().next().value;
+  route.forEach((key) => press_virtual_key(key));
+  assert.equal(calls, 1);
+});

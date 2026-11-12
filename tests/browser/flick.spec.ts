@@ -19,7 +19,7 @@ async function flick(page: Page, key: string, side: 'up' | 'down' | 'left' | 'ri
 
 test('release position selects each direction exactly once; returning inside selects the center', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Text playground (virtual keys type here)').check();
+  await page.getByRole('button', { name: 'Keyboard text editor', exact: true }).click();
   for (const [key, side, expected] of [
     ['q', 'up', '1'], ['q', 'down', 'Q'], ['b', 'left', '['], ['b', 'right', ']'],
     ['c', 'left', '{'], ['c', 'right', '}'], ['escape', 'up', '~'], ['escape', 'down', '`'], ['escape', 'right', 'tab'], [',', 'left', '<'], [',', 'right', '>'],
@@ -29,17 +29,17 @@ test('release position selects each direction exactly once; returning inside sel
     await flick(page, key, side);
     await expect(page.getByLabel('Last virtual key')).toHaveText(`Last key: ${expected}`);
   }
-  await expect(page.getByLabel('Custom text output')).toHaveText('1Q[]{}~`<>q');
+  await expect(page.getByRole('textbox', { name: 'Keyboard text editor', exact: true })).toHaveValue('1Q[]{}~`\t<>q');
   await flick(page, 'q', 'up', true);
-  await expect(page.getByLabel('Custom text output')).toHaveText('1Q[]{}~`<>qq');
+  await expect(page.getByRole('textbox', { name: 'Keyboard text editor', exact: true })).toHaveValue('1Q[]{}~`\t<>qq');
   await flick(page, 'q', 'right'); // Removed mappings must not emit a character or a tap.
   await flick(page, '.', 'up');
-  await expect(page.getByLabel('Custom text output')).toHaveText('1Q[]{}~`<>qq');
+  await expect(page.getByRole('textbox', { name: 'Keyboard text editor', exact: true })).toHaveValue('1Q[]{}~`\t<>qq');
 });
 
 test('cancellation, capture loss and non-primary mouse buttons emit no input', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Text playground (virtual keys type here)').check();
+  await page.getByRole('button', { name: 'Keyboard text editor', exact: true }).click();
   const q = page.locator('.keyboard-dock').getByRole('button', { name: 'q', exact: true });
   for (const cancel of ['pointercancel', 'lostpointercapture', 'blur']) {
     const box = (await q.boundingBox())!;
@@ -53,19 +53,18 @@ test('cancellation, capture loss and non-primary mouse buttons emit no input', a
     await expect(page.getByLabel('Last virtual key')).toHaveText('Last key: none');
   }
   await q.click({ button: 'right' });
-  await page.keyboard.press('Escape');
-  await expect(page.getByLabel('Custom text output')).toHaveText('(empty)');
+  await expect(page.getByRole('textbox', { name: 'Keyboard text editor', exact: true })).toHaveValue('');
 });
 
 test('native keyboard activation and Alt+arrow provide accessible flick input', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Text playground (virtual keys type here)').check();
+  await page.getByRole('button', { name: 'Keyboard text editor', exact: true }).click();
   const q = page.locator('.keyboard-dock').getByRole('button', { name: 'q', exact: true });
   await q.focus();
   await page.keyboard.press('Enter');
   await page.keyboard.press('Alt+ArrowUp');
   await page.keyboard.press('Alt+ArrowDown');
-  await expect(page.getByLabel('Custom text output')).toHaveText('q1Q');
+  await expect(page.getByRole('textbox', { name: 'Keyboard text editor', exact: true })).toHaveValue('q1Q');
 });
 
 test('all layouts are selectable from the frame menu and the dock remains the lower half', async ({ page }, testInfo) => {
@@ -103,7 +102,7 @@ test('real touch dragging releases beyond the key border and does not tap the un
   const context = await browser.newContext({ hasTouch: true, viewport: { width: 768, height: 1024 } });
   const page = await context.newPage();
   await page.goto('/');
-  await page.getByLabel('Text playground (virtual keys type here)').check();
+  await page.getByRole('button', { name: 'Keyboard text editor', exact: true }).click();
   const key = page.locator('.keyboard-dock').getByRole('button', { name: 'q', exact: true });
   const box = (await key.boundingBox())!;
   const x = box.x + box.width / 2, y = box.y + box.height / 2;
@@ -111,7 +110,7 @@ test('real touch dragging releases beyond the key border and does not tap the un
   await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
   await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: box.y - 15 }] });
   await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await expect(page.getByLabel('Custom text output')).toHaveText('1');
+  await expect(page.getByRole('textbox', { name: 'Keyboard text editor', exact: true })).toHaveValue('1');
   await expect(page.getByLabel('Last virtual key')).toHaveText('Last key: 1');
   await context.close();
 });
@@ -120,12 +119,12 @@ test('mixed layouts keep regular taps, customizable flicks and unmapped-directio
   await page.goto('/');
   await page.getByRole('button', { name: 'Choose keyboard', exact: true }).click();
   await page.getByRole('region', { name: 'Keyboard menu' }).getByRole('button', { name: /Mixed flick \+ regular/ }).click();
-  await page.getByLabel('Text playground (virtual keys type here)').check();
+  await page.getByRole('button', { name: 'Keyboard text editor', exact: true }).click();
   await flick(page, 'q', 'down'); // Mixed sample defines only up.
   await expect(page.getByLabel('Last virtual key')).toHaveText('Last key: none');
   await flick(page, 'q', 'up');
   await page.locator('.keyboard-dock').getByRole('button', { name: 'a', exact: true }).click();
-  await expect(page.getByLabel('Custom text output')).toHaveText('1a');
+  await expect(page.getByRole('textbox', { name: 'Keyboard text editor', exact: true })).toHaveValue('1a');
   // Unmount the gesture's source while held: releasing must not send a stray input.
   const q = page.locator('.keyboard-dock').getByRole('button', { name: 'q', exact: true });
   const box = (await q.boundingBox())!;
@@ -135,7 +134,7 @@ test('mixed layouts keep regular taps, customizable flicks and unmapped-directio
   await page.getByRole('region', { name: 'Keyboard menu' }).getByRole('button', { name: /Alphabet$/ }).evaluate((element) => (element as HTMLButtonElement).click());
   await page.mouse.up();
   await expect(page.getByLabel('Last virtual key')).toHaveText('Last key: a');
-  await expect(page.getByLabel('Custom text output')).toHaveText('1a');
+  await expect(page.getByRole('textbox', { name: 'Keyboard text editor', exact: true })).toHaveValue('1a');
 });
 
 

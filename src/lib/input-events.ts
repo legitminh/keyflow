@@ -1,5 +1,5 @@
 import { add_key_strokes, reset_key_strokes, take_input_token } from './stores/input.js';
-import { get_active_input_frame, get_input_platform } from './input-frames.js';
+import { get_active_input_frame, get_input_platform, type InputFrameController } from './input-frames.js';
 import { normalize_event_key, parse_shortcut } from './shortcuts.js';
 
 export interface KeyInput {
@@ -9,12 +9,24 @@ export interface KeyInput {
   ctrlKey?: boolean;
   metaKey?: boolean;
   altKey?: boolean;
+  shiftKey?: boolean;
+  source?: 'physical' | 'virtual';
 }
 export interface VirtualKeyInput extends KeyInput {
   type: 'keydown' | 'keyup';
   source: 'virtual';
 }
 export type VirtualKeyHandler = (event: VirtualKeyInput) => void;
+
+/** An input-owning frame may handle virtual input while leaving native text editing to the browser. */
+export type FrameInputHandler = (type: 'keydown' | 'keyup', input: KeyInput) => boolean;
+const frameHandlers = new WeakMap<InputFrameController, FrameInputHandler>();
+export function set_input_frame_handler(frame: InputFrameController, handler: FrameInputHandler) {
+  if (frameHandlers.has(frame)) throw new RangeError('InputFrame already has an input handler');
+  frameHandlers.set(frame, handler);
+  return () => { if (frameHandlers.get(frame) === handler) frameHandlers.delete(frame); };
+}
+export const has_input_frame_handler = () => frameHandlers.has(get_active_input_frame());
 
 export function reset_input() {
   get_active_input_frame().static_input.reset();
@@ -24,6 +36,8 @@ export function reset_input() {
 /** Returns whether a registered shortcut consumed this step. No DOM events are synthesized. */
 export function dispatch_key_input(type: 'keydown' | 'keyup', input: KeyInput): boolean {
   const frame = get_active_input_frame();
+  const handler = frameHandlers.get(frame);
+  if (handler) return handler(type, input);
   const manager = frame.static_input;
   const event = { key: input.key, code: input.code ?? '', repeat: input.repeat ?? false };
   if (type === 'keydown') {
