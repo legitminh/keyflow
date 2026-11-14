@@ -1,5 +1,7 @@
 <!-- Registers a persistent automatic token in the nearest InputFrame. -->
 <script lang="ts">
+  import { input_token_interaction, type InteractionHandlers } from '../interaction.js';
+  import { interaction } from '../actions/interaction.js';
   import type { Snippet } from 'svelte';
   import { onMount, untrack } from 'svelte';
 
@@ -11,21 +13,24 @@
 
   let {
     children = undefined,
-    on_close,
+    on_close = () => {},
+    on_enter, on_exit,
     priority = $bindable(),
     myToken = $bindable(),
     registered = true
   }: {
     children?: Snippet;
-    on_close: () => void;
+    on_close?: () => void;
     priority?: number;
     myToken?: InputToken;
     /** False lets a visibility wrapper manage registration. */
     registered?: boolean;
-  } = $props();
+  } & InteractionHandlers = $props();
   let internalToken = $state<InputToken>({
     priority: 0,
-    on_close: () => on_close?.()
+    on_close: () => on_close?.(),
+    on_enter: (event) => on_enter?.(event),
+    on_exit: (event) => on_exit?.(event)
   });
 
   if (!myToken) {
@@ -41,6 +46,8 @@
     if (!token) return;
     untrack(() => {
       token.on_close = () => on_close?.();
+      token.on_enter = (event) => on_enter?.(event);
+      token.on_exit = (event) => on_exit?.(event);
       if (explicitPriority === undefined) update_priority();
       else frame.update(token, explicitPriority);
     });
@@ -83,8 +90,9 @@
 </script>
 
 {#if children}
-  <button type="button" bind:this={element} disabled={$active_input_frame !== frame}
-    onclick={() => { if (myToken) frame.trigger(myToken); }} class="inline cursor-pointer">
+  <button type="button" bind:this={element}
+    use:interaction={{ controller: myToken ? input_token_interaction(myToken) : undefined, disabled: $active_input_frame !== frame }} disabled={$active_input_frame !== frame}
+    onclick={() => { if (myToken) frame.trigger(myToken, false); }} class="inline cursor-pointer">
     {@render children?.()}
   </button>
 {/if}

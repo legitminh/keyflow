@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { create_interaction, type InteractionHandlers, type InteractionExitReason } from '../interaction.js';
+  import { interaction } from '../actions/interaction.js';
   import { onDestroy, untrack, type Snippet } from 'svelte';
   import { format_shortcut } from '../shortcuts.js';
   import { press_virtual_key, type VirtualKeyHandler } from '../input-events.js';
@@ -9,11 +11,11 @@
   } from '../flick.js';
 
   let { key, flick = {}, label, color, width = 1, disabled = false,
-    pressed = false, onkey, children, class: className = '' }: {
+    pressed = false, onkey, on_enter, on_exit, children, class: className = '' }: {
     key: string; flick?: FlickBindings; label?: string; color?: string; width?: number;
     disabled?: boolean; pressed?: boolean; onkey?: VirtualKeyHandler;
     children?: Snippet; class?: string;
-  } = $props();
+  } & InteractionHandlers = $props();
   const directions: FlickDirection[] = ['up', 'down', 'left', 'right'];
   const descriptionId = $props.id();
   let element: HTMLButtonElement;
@@ -21,6 +23,7 @@
   let bounds: FlickBounds | null = null;
   let dragging = $state(false);
   let direction = $state<FlickDirection | null>(null);
+  const lifecycle = create_interaction(() => ({ on_enter, on_exit }));
   let text = $derived(label ?? format_shortcut([key], $input_platform));
   let hue = $derived(Array.from(key).reduce((n, char) => (n * 31 + char.charCodeAt(0) * 61) % 360, 0));
   let description = $derived(`Tap ${key}. ${directions.filter((side) => flick[side]).map((side) =>
@@ -30,13 +33,14 @@
     const value = typeof translation === 'string' ? { key: translation } : translation;
     return value.label ?? (value.key.length === 1 ? value.key : format_shortcut([value.key], $input_platform));
   }
-  function cancel() {
+  function cancel(reason: InteractionExitReason = 'cancelled', event?: Event) {
     const id = pointer;
     pointer = null;
     bounds = null;
     dragging = false;
     direction = null;
     if (id !== null && element?.hasPointerCapture(id)) element.releasePointerCapture(id);
+    lifecycle.exit('press', reason, event);
   }
   function start(event: PointerEvent) {
     if (disabled || pointer !== null || event.button !== 0) return;
@@ -46,6 +50,7 @@
     dragging = true;
     direction = null;
     element.setPointerCapture(event.pointerId);
+    lifecycle.enter({ source: 'pointer', key, original_event: event });
   }
   function move(event: PointerEvent) {
     if (event.pointerId === pointer && bounds) direction = resolve_flick_direction(bounds, event.clientX, event.clientY);
@@ -55,9 +60,16 @@
     event.preventDefault();
     const side = resolve_flick_direction(bounds, event.clientX, event.clientY);
     const translation = side ? flick[side] : key;
-    cancel(); // Clear before dispatch: the action may unmount this keyboard.
+    cancel(!disabled && translation !== undefined ? 'completed' : 'cancelled', event); // Clear before dispatch: the action may unmount this keyboard.
     // An unmapped direction cancels, rather than accidentally invoking the center key.
     if (!disabled && translation !== undefined) press_virtual_key(flick_translation_key(translation), onkey);
+  }
+  function tap(value: string, event: Event) {
+    if (!lifecycle.has('press')) {
+      lifecycle.enter({ source: 'keyboard', key: value, original_event: event });
+      lifecycle.exit('press', 'completed', event);
+    }
+    press_virtual_key(value, onkey);
   }
   function accessibleClick(event: MouseEvent) {
     // Pointer releases already emitted exactly one signal. Native keyboard/AT clicks have detail 0.
@@ -69,18 +81,19 @@
     if (!event.altKey || !side || !flick[side]) return;
     event.preventDefault();
     event.stopPropagation();
-    if (!disabled && !event.repeat) press_virtual_key(flick_translation_key(flick[side]!), onkey);
+    if (!disabled && !event.repeat) tap(flick_translation_key(flick[side]!), event);
   }
   $effect(() => {
     // Changing a layout/adapter or disabling a key aborts its in-flight gesture.
     key; flick; onkey; disabled;
-    untrack(cancel);
+    untrack(() => cancel(disabled ? 'disabled' : 'reset'));
   });
-  onDestroy(cancel);
+  onDestroy(() => cancel('unmounted'));
 </script>
 
-<svelte:window onblur={cancel} />
-<button type="button" bind:this={element} class="keyflow-key keyflow-flick-key {className}"
+<svelte:window onblur={() => cancel('reset')} />
+<svelte:document onvisibilitychange={() => { if (document.hidden) cancel('reset'); }} />
+<button type="button" use:interaction={{ controller: lifecycle, disabled, key, press: 'keyboard' }} bind:this={element} class="keyflow-key keyflow-flick-key {className}"
   class:pressed={pressed || dragging} data-flick={dragging ? direction ?? 'tap' : undefined}
   style:flex-grow={width} style:--key-color={color ?? `color-mix(in srgb, hsl(${hue} 65% 55%) 60%, var(--primary, #fff))`}
   aria-label={label ?? key} aria-describedby={descriptionId} {disabled}

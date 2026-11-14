@@ -22,7 +22,56 @@ Enter and exit triggers are independent. They use the existing `Shortcut` syntax
   enterTrigger={['ctrl', 'k']} exitTrigger={['ctrl', 'enter']} />
 ```
 
-Omit `enterTrigger` to assign an automatic shortcut, like Button. `priority` controls that automatic token's order. An explicit entry trigger reserves keys and must be prefix-free within its parent frame, like StaticButton. The exit trigger belongs only to the editing frame and may reuse the entry trigger. Prefer a named or modifier-based exit trigger: printable exit sequences intercept their matching characters before text insertion.
+Omit `enterTrigger` to assign an automatic shortcut, like Button. `priority` controls that automatic token's order. Set `enterTrigger={null}` to disable the textbox's entry binding and use client controls instead. An explicit entry trigger reserves keys and must be prefix-free within its parent frame, like StaticButton. The exit trigger belongs only to the editing frame and may reuse the entry trigger. Prefer a named or modifier-based exit trigger: printable exit sequences intercept their matching characters before text insertion.
+
+## Open from any client control
+
+Bind the component instance with `bind:this`, then call `enter()` from your button's action. Use `showEntry={false}` to hide the built-in entry button and `enterTrigger={null}` to avoid registering a second entry shortcut. The textarea remains mounted and appears when entered. These two options are independent: a hidden entry button can still have a configured shortcut, and an entry button with a null trigger still works by click.
+
+```svelte
+<script lang="ts">
+  import {
+    Keyflow, TextBox, Button, ButtonPositional, StaticButton, Interactable,
+    HoverButton, HoverButtonPositional, type TextBoxController, type Shortcut
+  } from '@legitminh/keyflow';
+
+  let editor = $state<TextBoxController>();
+  let text = $state('');
+  let enterTrigger = $state<Shortcut | null>(null);
+  let exitTrigger = $state<Shortcut>('escape');
+  const openEditor = () => { void editor?.enter(); };
+</script>
+
+<Keyflow>
+  <Button priority={0} on_close={openEditor}>Edit notes</Button>
+  <ButtonPositional on_close={openEditor}>Edit here</ButtonPositional>
+  <StaticButton keys={['ctrl', 'k']} on_close={openEditor}>Edit by exact shortcut</StaticButton>
+  <Interactable on_close={openEditor}>Your custom content</Interactable>
+  <HoverButton priority={1} on_close={openEditor}>Hover to see shortcut</HoverButton>
+  <HoverButtonPositional on_close={openEditor}>Hover positional opener</HoverButtonPositional>
+  <button type="button" onclick={openEditor}>Native button</button>
+
+  <TextBox bind:this={editor} bind:value={text} {enterTrigger} {exitTrigger}
+    showEntry={false} label="Notes" />
+
+  <button type="button" onclick={() => editor?.exit()}>Finish editing</button>
+  <button type="button" onclick={() => {
+    enterTrigger = 't';
+    exitTrigger = ['ctrl', 'enter'];
+  }}>Use T to enter and primary modifier + Enter to exit</button>
+</Keyflow>
+```
+
+Use any of the opener variants above, or supply your own button. `StaticButton` / `StaticInteractable` provide an absolute, explicitly assigned key sequence. `ButtonPositional` / `InteractablePositional` register while visible; `Button` / `Interactable` persist offscreen. The hover variants follow the same registration rules as their regular button counterparts. Openers should belong to the textbox's parent InputFrame.
+
+Both trigger props are reactive. Reassigning either replaces its binding and clears partial input for that binding's frame; the previous sequence stops working. `exitTrigger` can change during editing, and the exit hint updates with it. Set `enterTrigger` to `undefined` for automatic entry, `null` for external entry only, or a `Shortcut` for explicit entry. `showEntry` affects rendering only; it does not control shortcut registration.
+
+| Instance method | Behavior |
+| --- | --- |
+| `await editor.enter()` | Enters when mounted, enabled, and the parent frame is active; resolves after editor focus and `onenter`. Repeated entry or entry from another active frame does nothing. |
+| `await editor.exit()` | Exits when the textbox's editing frame is topmost, retains the value, and restores focus to the connected opener (or built-in button). Does nothing while a child frame is on top. |
+
+These methods use the same editing lifecycle as the built-in triggers. They return `Promise<void>` and safely do nothing when their guards are not met. Wait for the component to mount before calling `enter()`; a client `onMount` can `await tick()` first. Keep state in `bind:value` if conditionally unmounting the component. Unmounting disposes its editing frame and removes any frames above it.
 
 ## Editing behavior
 
@@ -43,8 +92,9 @@ The value is retained when exiting and reopening. A child InputFrame can tempora
 | Prop | Meaning |
 | --- | --- |
 | `bind:value` | Edited string, initially empty. |
-| `enterTrigger` | Optional explicit Shortcut; otherwise an automatic binding. |
-| `exitTrigger` | Shortcut that ends editing; default `'escape'`. |
+| `enterTrigger` | Reactive Shortcut; `undefined` (default) assigns an automatic binding; `null` disables entry binding. |
+| `exitTrigger` | Reactive Shortcut that ends editing; default `'escape'`. |
+| `showEntry` | Show the built-in preview/entry button; default `true`. Set `false` for custom openers. |
 | `priority` | Automatic entry-binding priority; default `0`. |
 | `label` | Accessible button/textarea label; default `'Text input'`. |
 | `placeholder` | Empty button/textarea prompt; default `'Click to edit'`. |
@@ -67,5 +117,7 @@ TextBox uses this narrow hook to check its exit binding before allowing native e
 ## Try the demo
 
 Run `pnpm demo`. On `/` (also `/stack`), click **Keyboard text editor** or input T. Type physically, tap/flick the docked keyboard, select text with a mouse, and use native clipboard/browser shortcuts. Tap Escape to return. Expand the custom-trigger example to test primary-modifier+K entry and primary-modifier+Enter exit.
+
+Visit `/controls` for client-supplied openers, hover overlays, and live entry/exit binding selectors. It also demonstrates API exit, disabled editors, and a child frame that temporarily masks editing.
 
 The flick-alpha Escape key replaces the former semicolon slot: tap Escape exits, left flick deletes backward, right flick inserts Tab, up flick types `~`, and down flick types a backtick. Space flicks move the caret in the corresponding direction. For a virtual Enter key, choose a layout such as 60%; physical Enter works normally in every layout.

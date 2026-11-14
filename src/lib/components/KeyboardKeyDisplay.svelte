@@ -1,19 +1,22 @@
 <script lang="ts">
+  import { create_interaction, type InteractionHandlers } from '../interaction.js';
+  import { interaction } from '../actions/interaction.js';
   import type { Snippet } from 'svelte';
   import { format_shortcut } from '../shortcuts.js';
   import { press_virtual_key, type VirtualKeyHandler } from '../input-events.js';
   import { input_platform } from '../input-frames.js';
 
   let { key, label, color, width = 1, disabled = false, pressed = false,
-    onkey, children, class: className = '' }: {
+    onkey, on_enter, on_exit, children, class: className = '' }: {
     key: string; label?: string; color?: string; width?: number; disabled?: boolean;
     pressed?: boolean; onkey?: VirtualKeyHandler; children?: Snippet; class?: string;
-  } = $props();
+  } & InteractionHandlers = $props();
+  const lifecycle = create_interaction(() => ({ on_enter, on_exit }));
   let text = $derived(label ?? format_shortcut([key], $input_platform));
   let hue = $derived(Array.from(key).reduce((n, char) => (n * 31 + char.charCodeAt(0) * 61) % 360, 0));
 </script>
 
-<button type="button" class="keyflow-key {className}" class:pressed
+<button type="button" use:interaction={{ controller: lifecycle, disabled, key }} class="keyflow-key {className}" class:pressed
   style:flex-grow={width} style:--key-color={color ?? `color-mix(in srgb, hsl(${hue} 65% 55%) 60%, var(--primary, #fff))`}
   aria-label={label ?? key} {disabled}
   onpointerdown={(event) => event.preventDefault()}

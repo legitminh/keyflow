@@ -2,6 +2,8 @@ export { default as Keyflow } from './components/Keyflow.svelte';
 export { default as Button } from './components/Button.svelte';
 export { default as ButtonDisplay } from './components/ButtonDisplay.svelte';
 export { default as ButtonPositional } from './components/ButtonPositional.svelte';
+export { default as HoverButton } from './components/HoverButton.svelte';
+export { default as HoverButtonPositional } from './components/HoverButtonPositional.svelte';
 export { default as Interactable } from './components/Interactable.svelte';
 export { default as InteractablePositional } from './components/InteractablePositional.svelte';
 export { default as StaticInteractable } from './components/StaticInteractable.svelte';
@@ -74,4 +76,9 @@ export {
   type FlickDirection, type FlickTranslation, type FlickBindings, type FlickBounds
 } from './flick.js';
 export { default as TextBox } from './components/TextBox.svelte';
+export type { TextBoxController } from './textbox.js';
 export { set_input_frame_handler, type FrameInputHandler } from './input-events.js';
+
+export { create_interaction, input_token_interaction, type InteractionController, type InteractionHandlers,
+  type InteractionEvent, type InteractionDetails, type InteractionKind, type InteractionSource, type InteractionExitReason } from './interaction.js';
+export { interaction, type InteractionOptions } from './actions/interaction.js';

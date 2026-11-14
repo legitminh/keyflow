@@ -9,8 +9,8 @@
   import { get_input_frame } from '../input-frame-context.js';
   const frame = get_input_frame();
   import ShortcutDisplay from './ShortcutDisplay.svelte';
-  let { children, token, flood = false }: {
-    children?: Snippet; token?: InputToken; flood?: boolean;
+  let { children, token, flood = false, overlay = false }: {
+    children?: Snippet; token?: InputToken; flood?: boolean; overlay?: boolean;
   } = $props();
   let activation = $derived(input_token_activation(token));
   let activated = $derived($active_input_frame === frame && $activation);
@@ -23,4 +23,4 @@
   let complete = $derived(route.length > 0 && count === route.length);
 </script>
 
-<ShortcutDisplay {activated} {entered} {pending} {complete} {hue} floods={flood} {children} />
+<ShortcutDisplay {activated} {entered} {pending} {complete} {hue} floods={flood} {overlay} {children} />

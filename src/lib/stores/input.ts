@@ -1,8 +1,10 @@
+import { cancel_key_interactions } from './key-interactions.js';
 import { get, writable } from 'svelte/store';
 import { insert_sorted } from '../utils/iterable.js';
+import { input_token_interaction, type InteractionHandlers } from '../interaction.js';
 import { key_presets } from '../key-presets.js';
 
-export type InputToken = { priority: number; on_close(): void };
+export type InputToken = InteractionHandlers & { priority: number; on_close(): void };
 
 export const _map_key_route = writable<Map<InputToken, string[]>>(new Map());
 export const _map_numeric_route = writable<Map<InputToken, number[]>>(new Map());
@@ -47,6 +49,7 @@ const compare = (a: InputToken, b: InputToken) => a.priority - b.priority;
 
 /** O(n * route length), only when registration, ordering, or the alphabet changes. */
 function rebuild_routes() {
+  cancel_key_interactions();
   const tokens = get(_list_input_token);
   const keys = get(_available_keys);
   let length = keys.length >= 2 || keys.length === 1 && tokens.length === 1 ? 1 : 0;
@@ -120,6 +123,7 @@ export const register_input_token = (token: InputToken, frame: InputFrameState) 
 
 export const unregister_input_token = (token: InputToken, frame: InputFrameState) => {
   if (!frame.tokens.delete(token)) return;
+  input_token_interaction(token).cancel('unregistered');
   frame.ordered = frame.ordered.filter((item) => item !== token);
   if (frame !== activeState) return;
   _list_input_token.set(frame.ordered);
@@ -152,8 +156,8 @@ export const base_conversion_s_endian = (digits: number[], base: number) => {
   return result;
 };
 
-/** O(route length) lookup, independent of the number of controls. */
-export function take_input_token(key: string): InputToken | undefined {
+/** Resolve the completed route without consuming it (for press lifecycle hooks). */
+export function peek_input_token(key: string): InputToken | undefined {
   if (!keyIndices.has(key.toLowerCase())) return;
   const strokes = get(_list_key_strokes);
   const tokens = get(_list_input_token);
@@ -161,7 +165,15 @@ export function take_input_token(key: string): InputToken | undefined {
   if (!strokes.length || !base || (base === 1 && tokens.length !== 1)) return;
   if (base ** strokes.length < tokens.length) return;
   const token = tokens[base_conversion_s_endian(strokes, base)];
-  reset_key_strokes();
+  return token;
+}
+
+/** O(route length) lookup, independent of the number of controls. */
+export function take_input_token(key: string): InputToken | undefined {
+  const token = peek_input_token(key);
+  const strokes = get(_list_key_strokes);
+  if (keyIndices.has(key.toLowerCase()) && strokes.length && keyIndices.size &&
+      keyIndices.size ** strokes.length >= get(_list_input_token).length) reset_key_strokes();
   return token;
 }
 
@@ -175,6 +187,7 @@ export function set_available_keys(keys: readonly string[]) {
       new Set(normalized).size !== normalized.length) {
     throw new RangeError('Provide at least two unique single-character shortcut keys');
   }
+  cancel_key_interactions();
   configuredKeys = normalized;
   update_alphabet();
   reset_key_strokes();

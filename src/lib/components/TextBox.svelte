@@ -11,10 +11,12 @@
   import ButtonDisplay from './ButtonDisplay.svelte';
   import StaticButtonDisplay from './StaticButtonDisplay.svelte';
 
-  let { value = $bindable(''), enterTrigger, exitTrigger = 'escape', priority = 0,
+  let { value = $bindable(''), enterTrigger, exitTrigger = 'escape', priority = 0, showEntry = true,
     label = 'Text input', placeholder = 'Click to edit', rows = 4, disabled = false,
     wrap = 'soft', class: className = '', onenter, onexit, oninput, ...attributes }: {
-    value?: string; enterTrigger?: Shortcut; exitTrigger?: Shortcut; priority?: number;
+    value?: string; enterTrigger?: Shortcut | null; exitTrigger?: Shortcut; priority?: number;
+    /** Hide the built-in entry button when supplying your own opener. */
+    showEntry?: boolean;
     label?: string; placeholder?: string; rows?: number; disabled?: boolean;
     wrap?: 'soft' | 'hard' | 'off'; class?: string;
     onenter?: (frame: InputFrameController) => void; onexit?: (value: string) => void;
@@ -24,34 +26,43 @@
   const parent = get_input_frame();
   const frame = create_input_frame({ name: 'textbox' });
   const stack = input_frame_manager.stack;
-  const entry = create_static_token(begin);
-  const automatic: InputToken = { priority: 0, on_close: begin };
+  const entry = create_static_token(enter);
+  const automatic: InputToken = { priority: 0, on_close: enter };
   const exitToken = create_static_token(exit);
   const descriptionId = $props.id();
   let textarea: HTMLTextAreaElement;
   let button = $state<HTMLButtonElement>();
   let editor = $state.raw<TextareaEditor>();
+  let mounted = false;
+  let opener: HTMLElement | undefined;
   let editing = $derived($stack.includes(frame));
   let active = $derived($active_input_frame === frame);
   const exitDescription = exitToken.description;
   let exitLabel = $derived($exitDescription.label);
 
-  async function begin() {
-    if (disabled || $active_input_frame !== parent || editing) return;
+  /** Enter from any client control in this textbox's parent InputFrame. */
+  export async function enter() {
+    if (!mounted || disabled || $active_input_frame !== parent || editing) return;
+    opener = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     editor?.resetModifiers();
     input_frame_manager.push(frame);
     await tick();
-    if ($active_input_frame === frame) {
+    if (mounted && $active_input_frame === frame) {
       focusEditor();
       onenter?.(frame);
     }
   }
-  async function exit() {
-    if ($active_input_frame !== frame) return;
+  /** Exit the topmost editing frame, preserving the value and restoring opener focus. */
+  export async function exit() {
+    if (!mounted || $active_input_frame !== frame) return;
     editor?.resetModifiers();
     frame.deactivate();
     await tick();
-    if ($active_input_frame === parent) button?.focus({ preventScroll: true });
+    if (mounted && $active_input_frame === parent) {
+      const target = opener?.isConnected && opener !== document.body ? opener : button;
+      if (target) target.focus({ preventScroll: true });
+      else if (document.activeElement === textarea) textarea.blur();
+    }
   }
   function focusEditor() {
     textarea.focus({ preventScroll: true });
@@ -61,6 +72,7 @@
   $effect(() => {
     const trigger = enterTrigger;
     const order = priority;
+    if (trigger === null || disabled) return;
     untrack(() => parent.update(automatic, order));
     return untrack(() => trigger === undefined ? parent.register(automatic) : parent.static_input.register(entry, trigger));
   });
@@ -79,6 +91,7 @@
   });
 
   onMount(() => {
+    mounted = true;
     textarea.setSelectionRange(value.length, value.length);
     editor = new TextareaEditor(textarea);
     const unregister = set_input_frame_handler(frame, (type, input) => {
@@ -90,19 +103,20 @@
     });
     const reset = () => editor?.resetModifiers();
     window.addEventListener('blur', reset);
-    return () => { unregister(); window.removeEventListener('blur', reset); editor?.destroy(); };
+    return () => { mounted = false; unregister(); window.removeEventListener('blur', reset); editor?.destroy(); };
   });
   onDestroy(() => frame.dispose());
 </script>
 
 <div class="keyflow-textbox {className}">
-  {#if !editing}
+  {#if showEntry && !editing}
     <button type="button" bind:this={button} class="text-entry" aria-label={label}
       disabled={disabled || $active_input_frame !== parent}
       onclick={() => parent.trigger(enterTrigger === undefined ? automatic : entry)}>
       {#snippet content()}<span class="preview">{value || placeholder}</span>{/snippet}
       {#if enterTrigger === undefined}<ButtonDisplay token={automatic} children={content} />
-      {:else}<StaticButtonDisplay token={entry} children={content} />{/if}
+      {:else if enterTrigger !== null}<StaticButtonDisplay token={entry} children={content} />
+      {:else}{@render content()}{/if}
     </button>
   {/if}
   <section hidden={!editing} aria-label={`${label} editor`}>

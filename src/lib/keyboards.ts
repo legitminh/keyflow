@@ -1,8 +1,9 @@
+import type { InteractionHandlers } from './interaction.js';
 import { get, writable } from 'svelte/store';
 import type { FlickBindings } from './flick.js';
 
 /** A key describes input space only; it never contains an InputToken or action binding. */
-export interface KeyboardKey {
+export interface KeyboardKey extends InteractionHandlers {
   key: string;
   label?: string;
   color?: string;

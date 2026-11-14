@@ -81,7 +81,8 @@
       <TextBox enterTrigger={['ctrl', 'k']} exitTrigger={['ctrl', 'enter']} label="Command text editor"
         placeholder="Primary modifier + K enters; primary modifier + Enter exits." rows={2} />
     </details>
-    <a href="/flow">Scrolling demo</a> · <a href="/frames">More keyboard examples</a>
+    <a href="/flow">Scrolling demo</a> · <a href="/frames">More keyboard examples</a> ·
+    <a href="/controls">Custom openers & hover buttons</a> · <a href="/interactions">Interaction events & timing</a>
   </main>
 
   <!-- Stable dock stays mounted while input frames and keyboard types change. -->

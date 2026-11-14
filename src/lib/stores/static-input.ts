@@ -1,3 +1,4 @@
+import { input_token_interaction, type InteractionHandlers, type InteractionDetails, type InteractionExitReason } from '../interaction.js';
 import { writable, type Writable } from 'svelte/store';
 import {
   detect_shortcut_platform, normalize_event_key, parse_shortcut, shortcut_key_label,
@@ -12,7 +13,7 @@ export interface StaticShortcutDescription {
   /** Cached trie path lets each visualizer check its prefix with one indexed lookup. */
   nodes: readonly object[];
 }
-export interface StaticInputToken {
+export interface StaticInputToken extends InteractionHandlers {
   on_close(): void;
   description: Writable<StaticShortcutDescription>;
 }
@@ -20,15 +21,20 @@ export const empty_static_description: StaticShortcutDescription = { label: '', 
 // Preserve token identity through Svelte $state and bind:myToken, like frame references.
 class StaticToken implements StaticInputToken {
   description = writable(empty_static_description);
-  constructor(public on_close: () => void) {}
+  on_enter?: InteractionHandlers['on_enter'];
+  on_exit?: InteractionHandlers['on_exit'];
+  constructor(public on_close: () => void, handlers: InteractionHandlers) {
+    this.on_enter = handlers.on_enter;
+    this.on_exit = handlers.on_exit;
+  }
 }
-export function create_static_token(on_close: () => void): StaticInputToken {
-  return new StaticToken(on_close);
+export function create_static_token(on_close: () => void = () => {}, handlers: InteractionHandlers = {}): StaticInputToken {
+  return new StaticToken(on_close, handlers);
 }
 
 interface Node { children: Map<string, Node>; token?: StaticInputToken; depth: number }
 const node = (depth: number): Node => ({ children: new Map(), depth });
-type KeyEvent = Pick<KeyboardEvent, 'key' | 'code' | 'repeat'>;
+type KeyEvent = Pick<KeyboardEvent, 'key' | 'code' | 'repeat'> & Pick<InteractionDetails, 'source' | 'original_event'>;
 export interface StaticProgress { node: object | null; depth: number; complete: boolean }
 const idle: StaticProgress = { node: null, depth: 0, complete: false };
 
@@ -49,6 +55,7 @@ export class StaticInputManager {
 
   clear() {
     for (const token of this.bindings.keys()) {
+      input_token_interaction(token).cancel('unregistered');
       this.reserve(token, []);
       token.description.set(empty_static_description);
     }
@@ -70,6 +77,7 @@ export class StaticInputManager {
     this.bindings = next;
     return () => {
       if (!this.bindings.has(token)) return;
+      input_token_interaction(token).cancel('unregistered');
       const remaining = new Map(this.bindings);
       remaining.delete(token);
       this.rebuild(remaining, this.platform);
@@ -110,10 +118,12 @@ export class StaticInputManager {
     }
   }
 
-  reset = () => {
+  reset = (reason: InteractionExitReason = 'reset') => {
+    const token = this.cursor.token;
     this.pressed.clear();
     this.cursor = this.root;
     this.progress.set(idle);
+    if (token) input_token_interaction(token).exit('press', reason);
   };
 
   private publish() {
@@ -122,7 +132,7 @@ export class StaticInputManager {
 
   private finish() {
     const token = this.cursor.token;
-    this.reset();
+    this.reset('completed');
     if (token) {
       flash_input_token(token);
       token.on_close();
@@ -142,6 +152,9 @@ export class StaticInputManager {
     this.pressed.set(identity, key);
     this.cursor = next;
     this.publish();
+    if (this.cursor.token) input_token_interaction(this.cursor.token).enter({
+      source: event.source ?? 'keyboard', key: event.key, code: event.code, original_event: event.original_event
+    });
     return true;
   }
 

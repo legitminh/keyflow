@@ -21,7 +21,7 @@ The new `VirtualKeyboard` provides color-coded text keycaps in flick-alpha, alph
 
 Read the [migration guide and complete API examples](docs/input-frames-and-keyboards.md) before updating a client. The default demo (`/`, also `/stack`) starts with flick alpha in a persistent lower-half keyboard dock; E/Choose keyboard opens the frame menu for all seven layouts plus a mixed example. See the [flick guide and complete mapping](docs/flick-keyboards.md), or `/frames` for more customization examples. The [implementation plan](docs/implementation-plan.md) records the scope and validation strategy.
 
-`TextBox` adds an input-owning editing frame with configurable entry/exit shortcuts, native textarea selection/IME/emoji support, and shared physical/virtual editing. In the demo, click **Keyboard text editor** or press T, then exit with Escape. See the [TextBox guide](docs/textbox.md).
+`TextBox` adds an input-owning editing frame with reactive entry/exit shortcuts, native textarea selection/IME/emoji support, and shared physical/virtual editing. Bind its instance and call `enter()` / `exit()` from any client button; `enterTrigger={null}` and `showEntry={false}` let your controls own entry. In the demo, click **Keyboard text editor** or press T, then exit with Escape. See the [TextBox guide](docs/textbox.md) for the typed API and complete client examples, or visit `/controls` for custom openers and hover buttons.
 
 ## Add to your project
 ```sh
@@ -97,6 +97,9 @@ Within each input frame, choose registration and ordering independently:
 | `Button` / `Interactable`, omit `priority` | Automatic positional ordering | Yes |
 | `Button` / `Interactable`, set `priority` | Explicit numeric ordering (lower first) | Yes |
 | `ButtonPositional` / `InteractablePositional` | Automatic positional ordering | No |
+| `HoverButton`, omit `priority` | Automatic positional ordering | Yes |
+| `HoverButton`, set `priority` | Explicit numeric ordering (lower first) | Yes |
+| `HoverButtonPositional` | Automatic positional ordering | No |
 
 For **persistent positional** controls, use `Button` or `Interactable` without a `priority` prop. Their shortcuts remain registered while offscreen and are removed when the component unmounts. `Button` displays the assigned shortcut; `Interactable` wraps custom content without adding a shortcut label.
 
@@ -107,6 +110,41 @@ For **persistent positional** controls, use `Button` or `Interactable` without a
 ```
 
 Import these components from `@legitminh/keyflow`. Persistence keeps the shortcut active; it does not pin the control onscreen or guarantee an unchanged shortcut as other controls register or reorder.
+
+### Enter, exit and elapsed time
+
+All button/interactable variants and keyboard keys accept `on_enter` and `on_exit`. Each event identifies its `kind` (`press`, `hover`, `focus`) and input source; exit includes `duration_ms`, `cancelled` and a reason. Filter the kind to build hold actions, dwell previews or focus behavior. `on_close` remains the optional completed action callback.
+
+```svelte
+<Button
+  on_enter={(event) => { if (event.kind === 'press') startPreview(); }}
+  on_exit={(event) => {
+    if (event.kind === 'press') {
+      stopPreview();
+      if (!event.cancelled) recordHold(event.duration_ms);
+    }
+  }}
+  on_close={save}
+>Save</Button>
+```
+
+Keyboard components accept shared defaults and per-key overrides. Use the exported `interaction` action for custom elements or `create_interaction()` for custom gestures and non-DOM adapters. See the [interaction guide](docs/interactions.md) for timing semantics, cancellation, typed events and examples, or run `/interactions` in the demo.
+
+### Hover buttons
+
+`HoverButton` and `HoverButtonPositional` render custom content with the assigned key path and entered/pending progress overlaid at the top right on mouse hover or keyboard focus. The overlay takes no layout space. Their shortcuts work even when the overlay is hidden, and they share regular buttons' activation feedback and InputFrame gating. The path is excluded from the accessible name, so give the content a descriptive action label.
+
+```svelte
+<script lang="ts">
+  import { HoverButton, HoverButtonPositional } from '@legitminh/keyflow';
+  let count = $state(0);
+</script>
+
+<HoverButton priority={0} on_close={() => count++}>Count: {count}</HoverButton>
+<HoverButtonPositional on_close={() => count++}>Count here: {count}</HoverButtonPositional>
+```
+
+`HoverButton` accepts `children`, `on_close`, and optional `priority`, matching `Button`. `HoverButtonPositional` accepts `children`, `on_close`, and optional `flood`, matching `ButtonPositional`; it registers only while visible and uses positional ordering. Hover controls can open a textbox by calling its bound `enter()` method; see [custom textbox openers](docs/textbox.md#open-from-any-client-control). For touch interfaces that need persistent shortcut hints, use `Button` or `ButtonPositional`.
 
 Shortcut sequences grow as the number of registered controls increases; Escape clears partial input. Typing in inputs, textareas, selects, or editable content does not trigger shortcuts. Unregistered modifier shortcuts remain available to the browser.
 
