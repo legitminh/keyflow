@@ -84,3 +84,11 @@ export { create_interaction, input_token_interaction, type InteractionController
 export { interaction, type InteractionOptions } from './actions/interaction.js';
 export { default as SubKeyframe } from './components/SubKeyframe.svelte';
 export type { SubKeyframeContext, SubKeyframeItem, SubKeyframeController } from './subkeyframe.js';
+
+export { distribute_color, f, color_hue, key_color_index, key_color_hue, shortcut_color_hue, special_key_color_indices } from './colors.js';
+export { default as SliderCore } from './components/SliderCore.svelte';
+export { default as HorizontalHoverSlider } from './components/HorizontalHoverSlider.svelte';
+export { default as VerticalHoverSlider } from './components/VerticalHoverSlider.svelte';
+export { default as HorizontalPositionalSlider } from './components/HorizontalPositionalSlider.svelte';
+export { default as VerticalPositionalSlider } from './components/VerticalPositionalSlider.svelte';
+export { normalize_slider_value, type SliderController, type SliderDirection, type SliderCoreProps, type SliderProps, type HoverSliderProps } from './slider.js';

@@ -2,6 +2,7 @@
   import { create_interaction, type InteractionHandlers, type InteractionExitReason } from '../interaction.js';
   import { interaction } from '../actions/interaction.js';
   import { onDestroy, untrack, type Snippet } from 'svelte';
+  import { key_color_hue } from '../colors.js';
   import { format_shortcut } from '../shortcuts.js';
   import { press_virtual_key, type VirtualKeyHandler } from '../input-events.js';
   import { input_platform } from '../input-frames.js';
@@ -25,7 +26,7 @@
   let direction = $state<FlickDirection | null>(null);
   const lifecycle = create_interaction(() => ({ on_enter, on_exit, on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit }));
   let text = $derived(label ?? format_shortcut([key], $input_platform));
-  let hue = $derived(Array.from(key).reduce((n, char) => (n * 31 + char.charCodeAt(0) * 61) % 360, 0));
+  let hue = $derived(key_color_hue(key));
   let description = $derived(`Tap ${key}. ${directions.filter((side) => flick[side]).map((side) =>
     `Flick ${side}: ${flick_translation_key(flick[side]!)}`).join('. ')}`);
 
@@ -95,7 +96,7 @@
 <svelte:document onvisibilitychange={() => { if (document.hidden) cancel('reset'); }} />
 <button type="button" use:interaction={{ controller: lifecycle, disabled, key, press: 'keyboard' }} bind:this={element} class="keyflow-key keyflow-flick-key {className}"
   class:pressed={pressed || dragging} data-flick={dragging ? direction ?? 'tap' : undefined}
-  style:flex-grow={width} style:--key-color={color ?? `color-mix(in srgb, hsl(${hue} 65% 55%) 60%, var(--primary, #fff))`}
+  style:flex-grow={width} style:--key-color={color ?? (hue === undefined ? 'var(--primary, currentColor)' : `color-mix(in srgb, hsl(${hue} 65% 55%) 60%, var(--primary, #fff))`)}
   aria-label={label ?? key} aria-describedby={descriptionId} {disabled}
   onpointerdown={start} onpointermove={move} onpointerup={release}
   onpointercancel={(event) => { if (event.pointerId === pointer) cancel(); }}

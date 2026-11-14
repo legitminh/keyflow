@@ -147,6 +147,16 @@ Keyboard components accept shared defaults and per-key overrides. The `interacti
 
 Use `children(context)` to append custom controls, `bind:open` for state, or `bind:this` for `enter()` / `exit()` / `toggle()`. See the [SubKeyframe guide](docs/subkeyframes.md) or run `/menus`.
 
+### Sliders and key colors
+
+`SliderCore` provides a draggable dot and line with a bindable value and `set`, `shift`, `start`, and `stop` methods. `HorizontalHoverSlider`, `VerticalHoverSlider`, `HorizontalPositionalSlider`, and `VerticalPositionalSlider` compose it with existing interactables. Hold a control or its shortcut to move continuously; release to stop. Hover presets default to arrow keys and accept custom `decreaseKeys` / `increaseKeys`. The core and presets support mouse, pen, touch, fractional steps, frame gating, and custom controls.
+
+```svelte
+<HorizontalHoverSlider bind:value={volume} label="Volume" min={0} max={100} step={1} />
+```
+
+The public `f(b, h, i)` / `distribute_color()` function generates unique ordered color buckets with the requested adjacent gap. Buttons and virtual keys share `f(256, 32, key_index)` through `key_color_hue()`; multi-key routes use sequential indices. Out-of-range indices have no highlight color. Read the [slider and color API guide](docs/sliders-and-colors.md) for setup, custom composition, named-key slots, and distribution guarantees, or visit `/sliders`.
+
 ### Hover buttons
 
 `HoverButton` and `HoverButtonPositional` render custom content with the assigned key path and entered/pending progress overlaid at the top right on mouse hover or keyboard focus. The overlay takes no layout space. Their shortcuts work even when the overlay is hidden, and they share regular buttons' activation feedback and InputFrame gating. The path is excluded from the accessible name, so give the content a descriptive action label.
@@ -161,7 +171,7 @@ Use `children(context)` to append custom controls, `bind:open` for state, or `bi
 <HoverButtonPositional on_close={() => count++}>Count here: {count}</HoverButtonPositional>
 ```
 
-`HoverButton` accepts `children`, `on_close`, and optional `priority`, matching `Button`. `HoverButtonPositional` accepts `children`, `on_close`, and optional `flood`, matching `ButtonPositional`; it registers only while visible and uses positional ordering. Hover controls can open a textbox by calling its bound `enter()` method; see [custom textbox openers](docs/textbox.md#open-from-any-client-control). For touch interfaces that need persistent shortcut hints, use `Button` or `ButtonPositional`.
+`HoverButton` accepts `children`, `on_close`, and optional `priority`, matching `Button`. Supply `keys` to use an explicit static shortcut instead of automatic assignment. `HoverButtonPositional` accepts `children`, `on_close`, and optional `flood`, matching `ButtonPositional`; it registers only while visible and uses positional ordering. Hover controls can open a textbox by calling its bound `enter()` method; see [custom textbox openers](docs/textbox.md#open-from-any-client-control). For touch interfaces that need persistent shortcut hints, use `Button` or `ButtonPositional`.
 
 Shortcut sequences grow as the number of registered controls increases; Escape clears partial input. Typing in inputs, textareas, selects, or editable content does not trigger shortcuts. Unregistered modifier shortcuts remain available to the browser.
 

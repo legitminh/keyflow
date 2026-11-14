@@ -4,12 +4,13 @@
   import { empty_static_description, type StaticInputToken } from '../stores/static-input.js';
   import { input_token_activation } from '../stores/activation.js';
   import ShortcutDisplay from './ShortcutDisplay.svelte';
+  import { shortcut_color_hue } from '../colors.js';
   import { active_input_frame } from '../input-frames.js';
   import { get_input_frame } from '../input-frame-context.js';
   const frame = get_input_frame();
   const { static_input } = frame;
-  let { token, children, flood = false }: {
-    token?: StaticInputToken; children?: Snippet; flood?: boolean;
+  let { token, children, flood = false, overlay = false }: {
+    token?: StaticInputToken; children?: Snippet; flood?: boolean; overlay?: boolean;
   } = $props();
   let activation = $derived(input_token_activation(token));
   let activated = $derived($active_input_frame === frame && $activation);
@@ -21,8 +22,8 @@
   let entered = $derived($description.labels.slice(0, count).join(''));
   let pending = $derived($active_input_frame === frame ? $description.labels.slice(count).join('') : '');
   let complete = $derived(matched && $progress.complete && count === $description.labels.length);
-  // Recomputed only when the registered label changes, never by scanning other controls.
-  let hue = $derived(Array.from($description.label).reduce((value, key) => (value * 31 + key.charCodeAt(0)) % 360, 0));
+  // Recomputed from the cached description, never by scanning other controls.
+  let hue = $derived($description.keys.length ? shortcut_color_hue($description.keys, $description.color_index) : undefined);
 </script>
 
-<ShortcutDisplay {activated} {entered} {pending} {complete} {hue} floods={flood} {children} />
+<ShortcutDisplay {activated} {entered} {pending} {complete} {hue} floods={flood} {overlay} {children} />

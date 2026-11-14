@@ -9,6 +9,7 @@
   import { get_input_frame } from '../input-frame-context.js';
   const frame = get_input_frame();
   import ShortcutDisplay from './ShortcutDisplay.svelte';
+  import { shortcut_color_hue } from '../colors.js';
   let { children, token, flood = false, overlay = false }: {
     children?: Snippet; token?: InputToken; flood?: boolean; overlay?: boolean;
   } = $props();
@@ -19,7 +20,7 @@
   let count = $derived($list_key_strokes.every((key, index) => key === route[index]) ? $list_key_strokes.length : 0);
   let entered = $derived(labels.slice(0, count).join(''));
   let pending = $derived(labels.slice(count).join(''));
-  let hue = $derived(((token ? $map_input_index.get(token) ?? 0 : 0) * 61) % 360);
+  let hue = $derived(labels.length ? shortcut_color_hue(labels, token ? $map_input_index.get(token) : undefined) : undefined);
   let complete = $derived(route.length > 0 && count === route.length);
 </script>
 

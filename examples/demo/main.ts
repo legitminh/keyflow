@@ -7,6 +7,7 @@ import MixedDemo from './MixedDemo.svelte';
 import InteractionDemo from './InteractionDemo.svelte';
 import MenusDemo from './MenusDemo.svelte';
 import ControlsDemo from './ControlsDemo.svelte';
+import SlidersDemo from './SlidersDemo.svelte';
 const component = window.location.pathname === '/flow' ? App
   : window.location.pathname === '/stack' ? StackDemo
   : window.location.pathname === '/frames' ? FramesDemo
@@ -14,5 +15,6 @@ const component = window.location.pathname === '/flow' ? App
   : window.location.pathname === '/menus' ? MenusDemo
   : window.location.pathname === '/interactions' ? InteractionDemo
   : window.location.pathname === '/controls' ? ControlsDemo
+  : window.location.pathname === '/sliders' ? SlidersDemo
   : window.location.pathname === '/static' ? StaticDemo : StackDemo;
 mount(component, { target: document.getElementById('app')! });

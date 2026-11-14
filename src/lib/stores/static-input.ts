@@ -8,6 +8,9 @@ import { flash_input_token } from './activation.js';
 import { reserve_input_keys } from './input.js';
 
 export interface StaticShortcutDescription {
+  keys: readonly string[];
+  /** Zero-based registration order among multi-key bindings in this frame. */
+  color_index?: number;
   label: string;
   labels: readonly string[];
   /** Cached trie path lets each visualizer check its prefix with one indexed lookup. */
@@ -17,7 +20,7 @@ export interface StaticInputToken extends InteractionHandlers {
   on_close(): void;
   description: Writable<StaticShortcutDescription>;
 }
-export const empty_static_description: StaticShortcutDescription = { label: '', labels: [], nodes: [] };
+export const empty_static_description: StaticShortcutDescription = { keys: [], label: '', labels: [], nodes: [] };
 // Preserve token identity through Svelte $state and bind:myToken, like frame references.
 class StaticToken implements StaticInputToken {
   description = writable(empty_static_description);
@@ -99,6 +102,7 @@ export class StaticInputManager {
   private rebuild(bindings: Map<StaticInputToken, Shortcut>, platform: ShortcutPlatform, commit = true) {
     const root = node(0);
     const prepared = new Map<StaticInputToken, { keys: string[]; description: StaticShortcutDescription }>();
+    let color_index = 0;
     for (const [token, shortcut] of bindings) {
       const keys = parse_shortcut(shortcut, platform);
       let cursor = root;
@@ -114,7 +118,7 @@ export class StaticInputManager {
       if (cursor.children.size) throw new RangeError(`Static shortcut is a prefix of an existing binding: ${shortcut}`);
       cursor.token = token;
       const labels = keys.map((key) => shortcut_key_label(key, platform));
-      prepared.set(token, { keys, description: { labels, label: labels.join(''), nodes } });
+      prepared.set(token, { keys, description: { keys, color_index: keys.length > 1 ? color_index++ : undefined, labels, label: labels.join(''), nodes } });
     }
     if (!commit) return;
     this.reset();

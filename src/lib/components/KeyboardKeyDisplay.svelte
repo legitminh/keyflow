@@ -2,6 +2,7 @@
   import { create_interaction, type InteractionHandlers } from '../interaction.js';
   import { interaction } from '../actions/interaction.js';
   import type { Snippet } from 'svelte';
+  import { key_color_hue } from '../colors.js';
   import { format_shortcut } from '../shortcuts.js';
   import { press_virtual_key, type VirtualKeyHandler } from '../input-events.js';
   import { input_platform } from '../input-frames.js';
@@ -13,11 +14,11 @@
   } & InteractionHandlers = $props();
   const lifecycle = create_interaction(() => ({ on_enter, on_exit, on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit }));
   let text = $derived(label ?? format_shortcut([key], $input_platform));
-  let hue = $derived(Array.from(key).reduce((n, char) => (n * 31 + char.charCodeAt(0) * 61) % 360, 0));
+  let hue = $derived(key_color_hue(key));
 </script>
 
 <button type="button" use:interaction={{ controller: lifecycle, disabled, key }} class="keyflow-key {className}" class:pressed
-  style:flex-grow={width} style:--key-color={color ?? `color-mix(in srgb, hsl(${hue} 65% 55%) 60%, var(--primary, #fff))`}
+  style:flex-grow={width} style:--key-color={color ?? (hue === undefined ? 'var(--primary, currentColor)' : `color-mix(in srgb, hsl(${hue} 65% 55%) 60%, var(--primary, #fff))`)}
   aria-label={label ?? key} {disabled}
   onpointerdown={(event) => event.preventDefault()}
   onclick={() => press_virtual_key(key, onkey)}>
