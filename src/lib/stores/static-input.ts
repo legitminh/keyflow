@@ -23,7 +23,15 @@ class StaticToken implements StaticInputToken {
   description = writable(empty_static_description);
   on_enter?: InteractionHandlers['on_enter'];
   on_exit?: InteractionHandlers['on_exit'];
+  on_pressed_down?: InteractionHandlers['on_pressed_down'];
+  on_pressed_up?: InteractionHandlers['on_pressed_up'];
+  on_cursor_enter?: InteractionHandlers['on_cursor_enter'];
+  on_cursor_exit?: InteractionHandlers['on_cursor_exit'];
   constructor(public on_close: () => void, handlers: InteractionHandlers) {
+    this.on_pressed_down = handlers.on_pressed_down;
+    this.on_pressed_up = handlers.on_pressed_up;
+    this.on_cursor_enter = handlers.on_cursor_enter;
+    this.on_cursor_exit = handlers.on_cursor_exit;
     this.on_enter = handlers.on_enter;
     this.on_exit = handlers.on_exit;
   }
@@ -118,21 +126,21 @@ export class StaticInputManager {
     }
   }
 
-  reset = (reason: InteractionExitReason = 'reset') => {
+  reset = (reason: InteractionExitReason = 'reset', original_event?: Event) => {
     const token = this.cursor.token;
     this.pressed.clear();
     this.cursor = this.root;
     this.progress.set(idle);
-    if (token) input_token_interaction(token).exit('press', reason);
+    if (token) input_token_interaction(token).exit('press', reason, original_event);
   };
 
   private publish() {
     this.progress.set({ node: this.cursor, depth: this.cursor.depth, complete: !!this.cursor.token });
   }
 
-  private finish() {
+  private finish(event: KeyEvent) {
     const token = this.cursor.token;
-    this.reset('completed');
+    this.reset('completed', event.original_event);
     if (token) {
       flash_input_token(token);
       token.on_close();
@@ -161,7 +169,7 @@ export class StaticInputManager {
   keyup(event: KeyEvent): boolean {
     const key = normalize_event_key(event.key);
     if (!this.pressed.delete(event.code || key)) return false;
-    if (!this.pressed.size && this.cursor.token) this.finish();
+    if (!this.pressed.size && this.cursor.token) this.finish(event);
     return true;
   }
 }

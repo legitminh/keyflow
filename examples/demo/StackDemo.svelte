@@ -82,7 +82,7 @@
         placeholder="Primary modifier + K enters; primary modifier + Enter exits." rows={2} />
     </details>
     <a href="/flow">Scrolling demo</a> · <a href="/frames">More keyboard examples</a> ·
-    <a href="/controls">Custom openers & hover buttons</a> · <a href="/interactions">Interaction events & timing</a>
+    <a href="/controls">Custom openers & hover buttons</a> · <a href="/interactions">Interaction events & timing</a> · <a href="/menus">Dropdowns & menus</a>
   </main>
 
   <!-- Stable dock stays mounted while input frames and keyboard types change. -->

@@ -7,11 +7,11 @@
   import { input_platform } from '../input-frames.js';
 
   let { key, label, color, width = 1, disabled = false, pressed = false,
-    onkey, on_enter, on_exit, children, class: className = '' }: {
+    onkey, on_enter, on_exit, on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit, children, class: className = '' }: {
     key: string; label?: string; color?: string; width?: number; disabled?: boolean;
     pressed?: boolean; onkey?: VirtualKeyHandler; children?: Snippet; class?: string;
   } & InteractionHandlers = $props();
-  const lifecycle = create_interaction(() => ({ on_enter, on_exit }));
+  const lifecycle = create_interaction(() => ({ on_enter, on_exit, on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit }));
   let text = $derived(label ?? format_shortcut([key], $input_platform));
   let hue = $derived(Array.from(key).reduce((n, char) => (n * 31 + char.charCodeAt(0) * 61) % 360, 0));
 </script>

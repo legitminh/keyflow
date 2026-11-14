@@ -13,14 +13,14 @@
 
   let {
     children = undefined,
-    on_close = () => {},
-    on_enter, on_exit,
+    on_close = () => {}, disabled = false,
+    on_enter, on_exit, on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit,
     priority = $bindable(),
     myToken = $bindable(),
     registered = true
   }: {
     children?: Snippet;
-    on_close?: () => void;
+    on_close?: () => void; disabled?: boolean;
     priority?: number;
     myToken?: InputToken;
     /** False lets a visibility wrapper manage registration. */
@@ -30,6 +30,10 @@
     priority: 0,
     on_close: () => on_close?.(),
     on_enter: (event) => on_enter?.(event),
+    on_pressed_down: (event) => (on_pressed_down ?? on_enter)?.(event),
+    on_pressed_up: (event) => (on_pressed_up ?? on_exit)?.(event),
+    on_cursor_enter: (event) => (on_cursor_enter ?? on_enter)?.(event),
+    on_cursor_exit: (event) => (on_cursor_exit ?? on_exit)?.(event),
     on_exit: (event) => on_exit?.(event)
   });
 
@@ -47,6 +51,10 @@
     untrack(() => {
       token.on_close = () => on_close?.();
       token.on_enter = (event) => on_enter?.(event);
+      token.on_pressed_down = (event) => (on_pressed_down ?? on_enter)?.(event);
+      token.on_pressed_up = (event) => (on_pressed_up ?? on_exit)?.(event);
+      token.on_cursor_enter = (event) => (on_cursor_enter ?? on_enter)?.(event);
+      token.on_cursor_exit = (event) => (on_cursor_exit ?? on_exit)?.(event);
       token.on_exit = (event) => on_exit?.(event);
       if (explicitPriority === undefined) update_priority();
       else frame.update(token, explicitPriority);
@@ -83,7 +91,7 @@
 
   $effect(() => {
     const token = myToken;
-    if (registered && token) return untrack(() => frame.register(token));
+    if (registered && !disabled && token) return untrack(() => frame.register(token));
   });
 
   let element = $state<HTMLButtonElement>();
@@ -91,8 +99,8 @@
 
 {#if children}
   <button type="button" bind:this={element}
-    use:interaction={{ controller: myToken ? input_token_interaction(myToken) : undefined, disabled: $active_input_frame !== frame }} disabled={$active_input_frame !== frame}
-    onclick={() => { if (myToken) frame.trigger(myToken, false); }} class="inline cursor-pointer">
+    use:interaction={{ controller: myToken ? input_token_interaction(myToken) : undefined, disabled: disabled || $active_input_frame !== frame }} disabled={disabled || $active_input_frame !== frame}
+    onclick={() => { if (!disabled && myToken) frame.trigger(myToken, false); }} class="inline cursor-pointer">
     {@render children?.()}
   </button>
 {/if}

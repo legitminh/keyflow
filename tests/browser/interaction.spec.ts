@@ -27,7 +27,7 @@ test('pointer press, hover, focus and keyboard activation have independent paire
   expect(press[1].duration_ms).toBeGreaterThanOrEqual(60);
   expect(press[1].cancelled).toBe(false);
   await page.mouse.move(0, 0);
-  expect((await events(page, 'automatic', 'hover')).map((e) => e.phase)).toEqual(['enter', 'exit']);
+  expect((await events(page, 'automatic', 'cursor')).map((e) => e.phase)).toEqual(['enter', 'exit']);
   await clear(page);
   await button.focus();
   await page.keyboard.down('Space');
@@ -153,4 +153,47 @@ test('synchronous blur and refocus end the old focus session before starting ano
   await button.focus();
   await button.evaluate((node: HTMLButtonElement) => { node.blur(); node.focus(); });
   expect((await events(page, 'custom', 'focus')).map((event) => event.phase)).toEqual(['enter', 'exit', 'enter']);
+});
+
+test('native keyboard focus/activation does not invoke cursor callbacks', async ({ page }) => {
+  await page.goto('/interactions');
+  const key = page.getByRole('button', { name: 'a', exact: true });
+  await key.focus(); await page.keyboard.press('Space');
+  expect(await events(page, 'keyboard', 'cursor')).toEqual([]);
+  expect((await events(page, 'keyboard')).map((event) => event.phase)).toEqual(['enter', 'exit']);
+});
+
+test('real touch contacts enter/exit keys while dragging under implicit pointer capture', async ({ browser }) => {
+  const context = await browser.newContext({ hasTouch: true, viewport: { width: 768, height: 1024 } });
+  const page = await context.newPage(); await page.goto('/interactions');
+  await page.getByRole('button', { name: 'a', exact: true }).scrollIntoViewIfNeeded();
+  const a = (await page.getByRole('button', { name: 'a', exact: true }).boundingBox())!;
+  const b = (await page.getByRole('button', { name: 'b', exact: true }).boundingBox())!;
+  const session = await context.newCDPSession(page);
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: a.x + a.width / 2, y: a.y + a.height / 2 }] });
+  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: b.x + b.width / 2, y: b.y + b.height / 2 }] });
+  await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  expect((await events(page, 'keyboard', 'cursor')).map((event) => event.phase)).toEqual(['enter', 'exit']);
+  expect((await events(page, 'per-key', 'cursor')).map((event) => event.phase)).toEqual(['enter', 'exit']);
+  expect((await events(page, 'keyboard'))[1].cancelled).toBe(true);
+  expect(await events(page, 'per-key')).toEqual([]);
+  const raw = JSON.parse((await page.getByLabel('Interaction events').textContent())!);
+  expect(raw.filter((event: { kind: string }) => event.kind === 'cursor').every((event: { pointer_type: string }) => event.pointer_type === 'touch')).toBe(true);
+  await context.close();
+});
+
+test('a cancelled touch ends both press and cursor exactly once', async ({ browser }) => {
+  const context = await browser.newContext({ hasTouch: true, viewport: { width: 768, height: 1024 } });
+  const page = await context.newPage(); await page.goto('/interactions');
+  await page.getByRole('button', { name: 'a', exact: true }).scrollIntoViewIfNeeded();
+  const a = (await page.getByRole('button', { name: 'a', exact: true }).boundingBox())!;
+  const session = await context.newCDPSession(page);
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: a.x + a.width / 2, y: a.y + a.height / 2 }] });
+  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  for (const kind of ['press', 'cursor']) {
+    const result = await events(page, 'keyboard', kind);
+    expect(result.map((event) => event.phase)).toEqual(['enter', 'exit']);
+    expect(result[1].cancelled).toBe(true);
+  }
+  await context.close();
 });

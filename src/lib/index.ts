@@ -82,3 +82,5 @@ export { set_input_frame_handler, type FrameInputHandler } from './input-events.
 export { create_interaction, input_token_interaction, type InteractionController, type InteractionHandlers,
   type InteractionEvent, type InteractionDetails, type InteractionKind, type InteractionSource, type InteractionExitReason } from './interaction.js';
 export { interaction, type InteractionOptions } from './actions/interaction.js';
+export { default as SubKeyframe } from './components/SubKeyframe.svelte';
+export type { SubKeyframeContext, SubKeyframeItem, SubKeyframeController } from './subkeyframe.js';

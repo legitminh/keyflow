@@ -18,15 +18,15 @@
 
   let {
     children,
-    on_close = () => {},
-    on_enter, on_exit,
+    on_close = () => {}, disabled = false,
+    on_enter, on_exit, on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit,
     myToken = $bindable()
-  }: { children?: Snippet; on_close?: () => void; myToken?: InputToken } & InteractionHandlers = $props();
+  }: { children?: Snippet; on_close?: () => void; disabled?: boolean; myToken?: InputToken } & InteractionHandlers = $props();
 
   let visible = $state(false);
 </script>
 
-<Interactable {on_close} {on_enter} {on_exit} bind:myToken registered={visible}>
+<Interactable {on_close} {disabled} {on_enter} {on_exit} {on_pressed_down} {on_pressed_up} {on_cursor_enter} {on_cursor_exit} bind:myToken registered={visible}>
   <div use:visibility={{ onFullyVisible: () => visible = true, onHidden: () => visible = false }}>
     {@render children?.()}
   </div>

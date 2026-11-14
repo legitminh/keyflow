@@ -159,3 +159,48 @@ test('an exit callback may choose another frame transition without the outer tra
   assert.equal(get_active_input_frame(), root_input_frame);
   assert.deepEqual(get(input_frame_manager.stack), [root_input_frame]);
 });
+
+test('specific press/cursor callbacks are independent and override their legacy fallback', () => {
+  let time = 10;
+  const events = [];
+  const callbacks = Object.fromEntries(['on_pressed_down', 'on_pressed_up', 'on_cursor_enter', 'on_cursor_exit', 'on_enter', 'on_exit']
+    .map((name) => [name, (event) => events.push([name, event])]));
+  const controller = create_interaction(callbacks, { now: () => time });
+  controller.enter({ kind: 'cursor', source: 'pointer', pointer_type: 'touch', pointer_id: 7 });
+  controller.enter({ source: 'pointer' });
+  time = 80;
+  controller.exit('press');
+  controller.exit('cursor');
+  assert.deepEqual(events.map(([name]) => name), ['on_cursor_enter', 'on_pressed_down', 'on_pressed_up', 'on_cursor_exit']);
+  assert.equal(events[2][1].duration_ms, 70);
+  assert.equal(events[3][1].pointer_type, 'touch');
+  controller.enter({ kind: 'focus' });
+  controller.exit('focus');
+  assert.deepEqual(events.slice(-2).map(([name]) => name), ['on_enter', 'on_exit']);
+});
+
+test('specific hooks receive cancellation and remain live on static tokens', () => {
+  const f = frame();
+  const result = [];
+  const token = create_static_token(() => result.push('action'), {
+    on_pressed_down: () => result.push('down'),
+    on_pressed_up: (event) => result.push(event.reason)
+  });
+  f.static_input.register(token, 'q');
+  dispatch_key_input('keydown', { key: 'q' });
+  reset_input();
+  dispatch_key_input('keyup', { key: 'q' });
+  assert.deepEqual(result, ['down', 'reset']);
+});
+
+test('static press-up callbacks receive the original release event', () => {
+  const f = frame();
+  let released;
+  f.static_input.register(create_static_token(() => {}, { on_pressed_up: (event) => { released = event; } }), 'q');
+  const down = Object.assign(new Event('keydown'), { key: 'q', code: 'KeyQ' });
+  const up = Object.assign(new Event('keyup'), { key: 'q', code: 'KeyQ' });
+  dispatch_key_input('keydown', down);
+  dispatch_key_input('keyup', up);
+  assert.equal(released.original_event, up);
+  assert.equal(released.key, 'q');
+});

@@ -5,7 +5,7 @@
   import type { VirtualKeyHandler } from '../input-events.js';
   import FlickKeyDisplay from './FlickKeyDisplay.svelte';
   import KeyboardKeyDisplay from './KeyboardKeyDisplay.svelte';
-  let { layout, toolbar, children, keyDisplay, onkey, on_enter, on_exit, colors = {}, class: className = '' }: {
+  let { layout, toolbar, children, keyDisplay, onkey, on_enter, on_exit, on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit, colors = {}, class: className = '' }: {
     layout?: KeyboardLayout; toolbar?: Snippet; children?: Snippet;
     keyDisplay?: Snippet<[KeyboardKey]>; onkey?: VirtualKeyHandler;
     colors?: Readonly<Record<string, string>>; class?: string;
@@ -19,8 +19,8 @@
       <div class="keyboard-row">
         {#each row as key}
           {#if keyDisplay}{@render keyDisplay(key)}
-          {:else if key.flick}<FlickKeyDisplay {...key} color={colors[key.key] ?? key.color} {onkey} on_enter={key.on_enter ?? on_enter} on_exit={key.on_exit ?? on_exit} />
-          {:else}<KeyboardKeyDisplay {...key} color={colors[key.key] ?? key.color} {onkey} on_enter={key.on_enter ?? on_enter} on_exit={key.on_exit ?? on_exit} />{/if}
+          {:else if key.flick}<FlickKeyDisplay {...key} color={colors[key.key] ?? key.color} {onkey} on_enter={key.on_enter ?? on_enter} on_exit={key.on_exit ?? on_exit} on_pressed_down={key.on_pressed_down ?? on_pressed_down} on_pressed_up={key.on_pressed_up ?? on_pressed_up} on_cursor_enter={key.on_cursor_enter ?? on_cursor_enter} on_cursor_exit={key.on_cursor_exit ?? on_cursor_exit} />
+          {:else}<KeyboardKeyDisplay {...key} color={colors[key.key] ?? key.color} {onkey} on_enter={key.on_enter ?? on_enter} on_exit={key.on_exit ?? on_exit} on_pressed_down={key.on_pressed_down ?? on_pressed_down} on_pressed_up={key.on_pressed_up ?? on_pressed_up} on_cursor_enter={key.on_cursor_enter ?? on_cursor_enter} on_cursor_exit={key.on_cursor_exit ?? on_cursor_exit} />{/if}
         {/each}
       </div>
     {/each}

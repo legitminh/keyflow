@@ -111,24 +111,41 @@ For **persistent positional** controls, use `Button` or `Interactable` without a
 
 Import these components from `@legitminh/keyflow`. Persistence keeps the shortcut active; it does not pin the control onscreen or guarantee an unchanged shortcut as other controls register or reorder.
 
-### Enter, exit and elapsed time
+### Press, cursor and elapsed time
 
-All button/interactable variants and keyboard keys accept `on_enter` and `on_exit`. Each event identifies its `kind` (`press`, `hover`, `focus`) and input source; exit includes `duration_ms`, `cancelled` and a reason. Filter the kind to build hold actions, dwell previews or focus behavior. `on_close` remains the optional completed action callback.
+Buttons, interactables and keyboard keys accept `on_pressed_down`, `on_pressed_up`, `on_cursor_enter` and `on_cursor_exit`. Cursor callbacks cover mouse/pen movement and touch contacts, including dragging between keys. Keyboard focus stays separate. Up/exit events include `duration_ms`, pointer/key metadata, and cancellation details.
 
 ```svelte
 <Button
-  on_enter={(event) => { if (event.kind === 'press') startPreview(); }}
-  on_exit={(event) => {
-    if (event.kind === 'press') {
-      stopPreview();
-      if (!event.cancelled) recordHold(event.duration_ms);
-    }
+  on_pressed_down={startPreview}
+  on_pressed_up={(event) => {
+    stopPreview();
+    if (!event.cancelled) recordHold(event.duration_ms);
   }}
+  on_cursor_enter={showHint}
+  on_cursor_exit={hideHint}
   on_close={save}
 >Save</Button>
 ```
 
-Keyboard components accept shared defaults and per-key overrides. Use the exported `interaction` action for custom elements or `create_interaction()` for custom gestures and non-DOM adapters. See the [interaction guide](docs/interactions.md) for timing semantics, cancellation, typed events and examples, or run `/interactions` in the demo.
+Keyboard components accept shared defaults and per-key overrides. The `interaction` action and `create_interaction()` controller support custom elements and adapters. See the [interaction guide](docs/interactions.md) for timing, cancellation and migration from the deprecated `on_enter`/`on_exit` callbacks, or run `/interactions`.
+
+### Dropdowns and submenus
+
+`SubKeyframe` manages a shortcut-enabled trigger, item list, owned frame, nested menus, Back/Escape, outside-click dismissal and return focus. Add items or custom children without implementing frame plumbing:
+
+```svelte
+<SubKeyframe label="File" enterTrigger="f" items={[
+  { label: 'New', on_select: createFile },
+  { label: 'Open', keys: 'o', on_select: openFile },
+  { label: 'Export', items: [
+    { label: 'PDF', on_select: exportPdf },
+    { label: 'Text', on_select: exportText }
+  ] }
+]} />
+```
+
+Use `children(context)` to append custom controls, `bind:open` for state, or `bind:this` for `enter()` / `exit()` / `toggle()`. See the [SubKeyframe guide](docs/subkeyframes.md) or run `/menus`.
 
 ### Hover buttons
 

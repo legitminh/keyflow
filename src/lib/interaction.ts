@@ -1,7 +1,7 @@
 import { untrack } from 'svelte';
 
-/** The independent interaction channels of a control. Hover and focus may overlap a press. */
-export type InteractionKind = 'press' | 'hover' | 'focus';
+/** The independent interaction channels of a control. Cursor contact and focus may overlap a press; hover is a legacy controller channel. */
+export type InteractionKind = 'press' | 'cursor' | 'hover' | 'focus';
 export type InteractionSource = 'pointer' | 'keyboard' | 'virtual' | 'programmatic';
 export type InteractionExitReason = 'completed' | 'cancelled' | 'reset' | 'disabled' | 'unmounted' | 'frame-change' | 'unregistered';
 export interface InteractionDetails {
@@ -10,6 +10,8 @@ export interface InteractionDetails {
   key?: string;
   code?: string;
   original_event?: Event;
+  pointer_type?: string;
+  pointer_id?: number;
 }
 export interface InteractionEvent {
   phase: 'enter' | 'exit';
@@ -18,6 +20,8 @@ export interface InteractionEvent {
   key?: string;
   code?: string;
   original_event?: Event;
+  pointer_type?: string;
+  pointer_id?: number;
   /** Monotonic timestamps and elapsed time in milliseconds, independent of display animations. */
   started_at: number;
   ended_at?: number;
@@ -26,7 +30,13 @@ export interface InteractionEvent {
   reason?: InteractionExitReason;
 }
 export interface InteractionHandlers {
+  on_pressed_down?: (event: InteractionEvent) => void;
+  on_pressed_up?: (event: InteractionEvent) => void;
+  on_cursor_enter?: (event: InteractionEvent) => void;
+  on_cursor_exit?: (event: InteractionEvent) => void;
+  /** @deprecated Use the specific press/cursor callbacks. Also observes native focus. */
   on_enter?: (event: InteractionEvent) => void;
+  /** @deprecated Use the specific press/cursor callbacks. Also observes native focus. */
   on_exit?: (event: InteractionEvent) => void;
 }
 
@@ -37,6 +47,15 @@ export function create_interaction(
 ) {
   const sessions = new Map<InteractionKind, InteractionEvent>();
   const callbacks = () => typeof handlers === 'function' ? handlers() : handlers;
+  const notify = (event: InteractionEvent) => untrack(() => {
+    const current = callbacks();
+    const handler = event.kind === 'press'
+      ? event.phase === 'enter' ? current.on_pressed_down : current.on_pressed_up
+      : event.kind === 'cursor' || event.kind === 'hover'
+        ? event.phase === 'enter' ? current.on_cursor_enter : current.on_cursor_exit
+        : undefined;
+    (handler ?? (event.phase === 'enter' ? current.on_enter : current.on_exit))?.(event);
+  });
   const controller = {
     has(kind: InteractionKind = 'press') { return sessions.has(kind); },
     enter(details: InteractionDetails = {}) {
@@ -46,7 +65,7 @@ export function create_interaction(
         phase: 'enter', started_at: now(), duration_ms: 0, cancelled: false };
       // Record before callbacks so reentrant cleanup always sees the live session.
       sessions.set(kind, event);
-      untrack(() => callbacks().on_enter?.({ ...event }));
+      notify({ ...event });
     },
     exit(kind: InteractionKind = 'press', reason: InteractionExitReason = 'completed', original_event?: Event) {
       const start = sessions.get(kind);
@@ -56,7 +75,7 @@ export function create_interaction(
       const event: InteractionEvent = { ...start, phase: 'exit', ended_at,
         duration_ms: Math.max(0, ended_at - start.started_at), cancelled: reason !== 'completed', reason,
         original_event: original_event ?? start.original_event };
-      untrack(() => callbacks().on_exit?.(event));
+      notify(event);
       return event;
     },
     cancel(reason: Exclude<InteractionExitReason, 'completed'> = 'cancelled') {

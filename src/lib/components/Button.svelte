@@ -6,10 +6,10 @@
   import type { Snippet } from 'svelte';
   let {
     children,
-    on_close = () => {},
-    on_enter, on_exit,
+    on_close = () => {}, disabled = false,
+    on_enter, on_exit, on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit,
     priority = undefined
-  }: { children?: Snippet; on_close?: () => void; priority?: number } & InteractionHandlers = $props();
+  }: { children?: Snippet; on_close?: () => void; disabled?: boolean; priority?: number } & InteractionHandlers = $props();
 
   import Interactable from './Interactable.svelte';
   import ButtonDisplay from './ButtonDisplay.svelte';
@@ -18,6 +18,6 @@
   let positionalToken = $state<InputToken | undefined>();
 </script>
 
-<Interactable bind:priority bind:myToken={positionalToken} {on_close} {on_enter} {on_exit}>
+<Interactable bind:priority bind:myToken={positionalToken} {on_close} {disabled} {on_enter} {on_exit} {on_pressed_down} {on_pressed_up} {on_cursor_enter} {on_cursor_exit}>
   <ButtonDisplay token={positionalToken} {children} />
 </Interactable>

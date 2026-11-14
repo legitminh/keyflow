@@ -13,8 +13,12 @@
   const child = create_input_frame({ name: 'lifecycle-child' });
   onDestroy(() => child.dispose());
   const handlers = (control: string) => ({
-    on_enter: (event: InteractionEvent) => { events.push({ ...event, original_event: undefined, control }); },
-    on_exit: (event: InteractionEvent) => { events.push({ ...event, original_event: undefined, control }); }
+    on_pressed_down: (event: InteractionEvent) => { events.push({ ...event, original_event: undefined, control }); },
+    on_pressed_up: (event: InteractionEvent) => { events.push({ ...event, original_event: undefined, control }); },
+    on_cursor_enter: (event: InteractionEvent) => { events.push({ ...event, original_event: undefined, control }); },
+    on_cursor_exit: (event: InteractionEvent) => { events.push({ ...event, original_event: undefined, control }); },
+    on_enter: (event: InteractionEvent) => { if (event.kind === 'focus') events.push({ ...event, original_event: undefined, control }); },
+    on_exit: (event: InteractionEvent) => { if (event.kind === 'focus') events.push({ ...event, original_event: undefined, control }); }
   });
 </script>
 
@@ -49,6 +53,7 @@
 </Keyflow>
 
 <style>
+  main :global(.keyflow-key) { touch-action: none; }
   main { padding: 1rem; font: 1rem/1.5 system-ui, sans-serif; }
   .controls { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0; }
   main :global(button) { padding: .5rem; }

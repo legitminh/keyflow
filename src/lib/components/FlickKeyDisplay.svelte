@@ -11,7 +11,7 @@
   } from '../flick.js';
 
   let { key, flick = {}, label, color, width = 1, disabled = false,
-    pressed = false, onkey, on_enter, on_exit, children, class: className = '' }: {
+    pressed = false, onkey, on_enter, on_exit, on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit, children, class: className = '' }: {
     key: string; flick?: FlickBindings; label?: string; color?: string; width?: number;
     disabled?: boolean; pressed?: boolean; onkey?: VirtualKeyHandler;
     children?: Snippet; class?: string;
@@ -23,7 +23,7 @@
   let bounds: FlickBounds | null = null;
   let dragging = $state(false);
   let direction = $state<FlickDirection | null>(null);
-  const lifecycle = create_interaction(() => ({ on_enter, on_exit }));
+  const lifecycle = create_interaction(() => ({ on_enter, on_exit, on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit }));
   let text = $derived(label ?? format_shortcut([key], $input_platform));
   let hue = $derived(Array.from(key).reduce((n, char) => (n * 31 + char.charCodeAt(0) * 61) % 360, 0));
   let description = $derived(`Tap ${key}. ${directions.filter((side) => flick[side]).map((side) =>
@@ -50,7 +50,7 @@
     dragging = true;
     direction = null;
     element.setPointerCapture(event.pointerId);
-    lifecycle.enter({ source: 'pointer', key, original_event: event });
+    lifecycle.enter({ source: 'pointer', key, original_event: event, pointer_type: event.pointerType, pointer_id: event.pointerId });
   }
   function move(event: PointerEvent) {
     if (event.pointerId === pointer && bounds) direction = resolve_flick_direction(bounds, event.clientX, event.clientY);

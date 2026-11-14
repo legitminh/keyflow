@@ -1,78 +1,81 @@
-# Interaction hooks and timing
+# Press and cursor callbacks
 
-Buttons and keyboard keys accept optional `on_enter` and `on_exit` callbacks. They share one typed event API across automatic shortcuts, static shortcuts, pointer/touch input, native keyboard activation, hover and focus. Existing `on_close` callbacks retain their action behavior; omit `on_close` when the lifecycle callbacks own the behavior.
+Every button/interactable variant and keyboard key supports four independent callbacks:
+
+| Callback | When it runs |
+| --- | --- |
+| `on_pressed_down(event)` | A pointer/touch press or keyboard activation begins. |
+| `on_pressed_up(event)` | That press is released or cancelled. |
+| `on_cursor_enter(event)` | A mouse/pen cursor or touch contact enters the control. |
+| `on_cursor_exit(event)` | That cursor/contact leaves, lifts, or is cancelled. |
 
 ```svelte
 <script lang="ts">
-  import { Button, type InteractionEvent } from '@legitminh/keyflow';
-
-  function entered(event: InteractionEvent) {
-    if (event.kind === 'press') startPreview();
-  }
-
-  function exited(event: InteractionEvent) {
-    if (event.kind !== 'press') return;
-    stopPreview();
-    if (!event.cancelled) saveHoldDuration(event.duration_ms);
-  }
+  import { Button } from '@legitminh/keyflow';
 </script>
 
-<Button on_enter={entered} on_exit={exited} on_close={save}>Save</Button>
+<Button
+  on_pressed_down={() => startPreview()}
+  on_pressed_up={(event) => {
+    stopPreview();
+    if (!event.cancelled) recordHold(event.duration_ms);
+  }}
+  on_cursor_enter={() => showHint()}
+  on_cursor_exit={(event) => hideHint(event.duration_ms)}
+  on_close={save}
+>Save</Button>
 ```
 
-This API is available on `Button`, `ButtonPositional`, `HoverButton`, `HoverButtonPositional`, `Interactable`, `InteractablePositional`, `StaticButton`, `StaticInteractable`, `KeyboardKeyDisplay` and `FlickKeyDisplay`. The callbacks are reactive: a mounted control uses the latest supplied callbacks without needing to register its route again.
+`on_close` retains the existing activation behavior. Omit it when your press/cursor callbacks own the behavior. `disabled` disables the control and unregisters its shortcut. Callback props remain live without re-registering a route.
 
-## Event data
+The API is shared by `Button`, `ButtonPositional`, `HoverButton`, `HoverButtonPositional`, `Interactable`, `InteractablePositional`, `StaticButton`, `StaticInteractable`, `KeyboardKeyDisplay` and `FlickKeyDisplay`. SubKeyframe triggers and list items accept the same callbacks.
+
+## Mouse, touch and focus
+
+Mouse/pen cursor events follow pointer enter/leave. Touch cursor entry starts at contact, movement can exit one control and enter another, and lifting ends the cursor session. Hit testing handles touch's implicit pointer capture, including captured flick gestures. Multiple contacts over one control share a cursor session: first contact enters, last contact leaves. The press still belongs to the control where it began; dragging over a neighbor does not press that neighbor.
+
+Press and cursor callbacks are independent. Leaving a control while holding it ends the cursor session while the press remains open until release or cancellation. Releasing an ordinary control outside its bounds cancels the press. A mapped flick can complete outside its original key; an unmapped direction cancels it.
+
+Native keyboard focus does **not** invoke cursor callbacks. Enter/Space activation invokes press callbacks. Native focus/blur semantics remain available through the DOM, and through the deprecated generic callbacks described below.
+
+## Event data and timing
 
 | Property | Meaning |
 | --- | --- |
-| `phase` | `enter` or `exit` |
-| `kind` | `press`, `hover` or `focus` |
-| `source` | `pointer`, `keyboard`, `virtual` or `programmatic` |
-| `key`, `code` | Input key/physical code when supplied by the adapter; keyboard keys always provide their key |
-| `started_at` | Monotonic start time in milliseconds (`performance.now()`) |
-| `ended_at` | Monotonic end time, present on exit |
-| `duration_ms` | Elapsed milliseconds; zero on enter |
-| `cancelled` | Whether the interaction ended before normal completion |
-| `reason` | Exit reason: `completed`, `cancelled`, `reset`, `disabled`, `unmounted`, `frame-change` or `unregistered` |
-| `original_event` | Original DOM event when available; absent for imperative or virtual input |
+| `phase` | `enter` for down/cursor entry, `exit` for up/cursor exit. |
+| `kind` | `press` or `cursor` for the four callbacks; legacy generic callbacks can also observe `focus`. |
+| `source` | `pointer`, `keyboard`, `virtual` or `programmatic`. |
+| `pointer_type`, `pointer_id` | Pointer metadata when available (`mouse`, `touch`, `pen`). The ID identifies the initiating contact. |
+| `key`, `code` | Input key/physical code when supplied by the adapter. Keyboard keys provide their key. |
+| `started_at` | Monotonic start timestamp in milliseconds (`performance.now()`). |
+| `ended_at` | Monotonic end timestamp, present on up/exit. |
+| `duration_ms` | Elapsed milliseconds; zero on down/entry. |
+| `cancelled` | True if the session ended before normal completion. |
+| `reason` | `completed`, `cancelled`, `reset`, `disabled`, `unmounted`, `frame-change` or `unregistered`. |
+| `original_event` | Original DOM event when available. Absent for imperative/virtual input. |
 
-Press, hover and focus are independent channels. A focused control can also be hovered and pressed; each channel gets its own pair of callbacks and its own duration. Filter `event.kind` to implement dwell behavior, hold behavior, or focus previews separately. `source: 'keyboard'` on focus describes the focus channel, including focus assigned by script or a pointer click; it does not infer the user's focus modality.
+Automatic shortcuts start a press when a down event completes the button's route. Prefix keys do not start the button press. Static shortcuts remain pressed until all held keys in the completed sequence have been released. Repeats never add down callbacks.
 
-A press begins on pointer down, native Enter/Space down, or the down event that completes a routed shortcut. Automatic route prefixes do not start a button press. Static shortcuts stay pressed until every key held in that completed sequence has been released. Key repeat does not create another enter event. Normal pointer releases outside a control cancel; mapped flick releases outside the border complete the gesture, while unmapped directions cancel it.
+`press_virtual_key()` emits an immediate down/up pair. A routed button's duration measures that pair; the on-screen key's pointer callbacks measure its actual hold. Native accessibility clicks and `frame.trigger(token)` without down/up input emit instantaneous press pairs. Native activation behavior is preserved: Enter can invoke `on_close` before release; pointer clicks and Space usually invoke it after release. Use `on_pressed_up` when behavior must run at release.
 
-`press_virtual_key()` remains an immediate down/up pair. Its routed button duration measures that pair; the on-screen key's pointer lifecycle measures the actual hold. Native accessibility clicks and `frame.trigger(token)` without a down/up input emit an instantaneous press pair. Native click behavior is preserved: Enter may activate `on_close` before release, while pointer clicks and Space usually activate after release. Use `on_exit` for behavior that must run specifically at release.
+Resetting input, losing window focus, hiding the page, changing frames, unregistering, disabling or destroying a control cancels its open sessions. The up/exit callbacks still run for cleanup; check `cancelled` before committing a hold action. Changing a flick layout or adapter also cancels its gesture. Timing is independent of the brief activation highlight.
 
-Resetting input, losing window focus, hiding the page, changing frames, unregistering or destroying a control ends its open sessions with `cancelled: true`. Changing a flick key's layout or adapter also cancels the gesture. Always clean up a preview or hold action on exit, including cancelled exits. Timing is independent of Keyflow's brief activation highlight.
+## Shared keyboard defaults and individual keys
 
-## Keyboard-wide defaults and individual keys
-
-`KeyboardDisplay`, `VirtualKeyboard` and `ActiveKeyboard` accept the same callbacks as defaults for their built-in keys. A key's own callback overrides the corresponding default, so keyboards can mix shared telemetry with special key behavior. `event.key` identifies the key.
+`KeyboardDisplay`, `VirtualKeyboard` and `ActiveKeyboard` accept the same four callbacks as defaults for built-in keys. A key's corresponding callback overrides that default. Each event includes `key`.
 
 ```svelte
 <VirtualKeyboard
-  on_enter={(event) => previewKey(event.key, event.kind)}
-  on_exit={(event) => recordKeyTime(event.key, event.kind, event.duration_ms)}
+  on_pressed_down={(event) => previewKey(event.key)}
+  on_pressed_up={(event) => recordKeyHold(event.key, event.duration_ms)}
+  on_cursor_enter={(event) => highlightKey(event.key)}
+  on_cursor_exit={(event) => clearHighlight(event.key)}
 />
 ```
 
-Per-key callbacks are fields on `KeyboardKey` in a custom layout, or props on a directly rendered key component:
+Set callbacks on individual `KeyboardKey` objects in a custom layout or directly on `KeyboardKeyDisplay` / `FlickKeyDisplay`. Custom `keyDisplay` snippets own their markup; pass the callbacks into a key component or use the action below.
 
-```svelte
-<KeyboardKeyDisplay
-  key="a"
-  on_exit={(event) => {
-    if (event.kind === 'press' && !event.cancelled) recordHold(event.duration_ms);
-  }}
-  onkey={myInputAdapter}
-/>
-```
-
-Custom `keyDisplay` snippets own their markup and event wiring; pass your handlers into a key component or use the action below.
-
-## Custom elements and gestures
-
-Use the `interaction` Svelte action to add the lifecycle to your own native control. Supply `disabled` along with its DOM attribute so disabling an active control cancels immediately. The action observes events without preventing defaults, synthesizing DOM events, or invoking an action callback.
+## Custom elements, gestures and adapters
 
 ```svelte
 <script lang="ts">
@@ -82,19 +85,26 @@ Use the `interaction` Svelte action to add the lifecycle to your own native cont
 
 <button {disabled} use:interaction={{
   disabled,
-  on_enter: (event) => showPreview(event.kind),
-  on_exit: (event) => hidePreview(event.kind, event.duration_ms)
-}}>
-  My control
-</button>
+  on_pressed_down: startHold,
+  on_pressed_up: finishHold,
+  on_cursor_enter: showPreview,
+  on_cursor_exit: hidePreview
+}}>My control</button>
 ```
 
-For custom gestures, state machines, or non-DOM adapters, use the standalone controller:
+The `interaction` action observes events without preventing defaults or invoking an action callback. Pass its `disabled` option with the DOM attribute to cancel immediately when disabling. A custom gesture can set `press: false` to own its press channel, or `press: 'keyboard'` to retain native Enter/Space press handling while owning pointer presses. Cursor handling remains enabled.
+
+For custom gestures, state machines and non-DOM adapters:
 
 ```ts
 import { create_interaction } from '@legitminh/keyflow';
 
-const lifecycle = create_interaction({ on_enter: beginHold, on_exit: finishHold });
+const lifecycle = create_interaction({
+  on_pressed_down: beginHold,
+  on_pressed_up: finishHold,
+  on_cursor_enter: showPreview,
+  on_cursor_exit: hidePreview
+});
 lifecycle.enter({ kind: 'press', source: 'programmatic', key: 'record' });
 // Later:
 lifecycle.exit('press');
@@ -102,8 +112,14 @@ lifecycle.exit('press');
 lifecycle.cancel('cancelled');
 ```
 
-`enter()` and `exit()` are idempotent per channel. `has(kind = 'press')` reports whether a session is open; `cancel(reason)` closes all current channels. Pass a handler getter for reactive callbacks, and an optional `{ now: () => number }` second argument for a custom monotonic clock or deterministic tests.
+Use `kind: 'cursor'` for a custom cursor/contact adapter. `enter()` and `exit()` are idempotent per channel; `has(kind = 'press')` reports an open session; `cancel(reason)` closes current channels. A handler getter keeps callbacks live. An optional `{ now: () => number }` second argument supplies a monotonic clock for deterministic tests.
 
-Imperative automatic tokens accept `on_enter`/`on_exit` beside `on_close`. For static tokens, use `create_static_token(on_close, { on_enter, on_exit })`. `input_token_interaction(token)` returns the shared controller used by routing and the control's DOM action. A custom DOM/gesture adapter can pass that controller to `use:interaction`, then call `frame.trigger(token, false)` to invoke the action without synthesizing another lifecycle. Plain `frame.trigger(token)` emits a programmatic pair; an optional second details object supplies its source/key metadata.
+Automatic tokens accept the four callbacks beside `on_close`. Static tokens use `create_static_token(on_close, callbacks)`. `input_token_interaction(token)` returns the shared controller used by routing and the DOM action. A custom adapter can pass it to `use:interaction`, then call `frame.trigger(token, false)` to invoke the action without another lifecycle. Plain `frame.trigger(token)` emits a programmatic pair; an optional details object supplies source/key metadata.
 
-Try `/interactions` in the demo to inspect live events and durations.
+## Migrating from v0.5
+
+Replace `on_enter`/`on_exit` callbacks that inspect `kind` with the four named callbacks. Built-in pointer events now use `kind: 'cursor'` instead of `'hover'`. The standalone controller still accepts legacy `'hover'` sessions.
+
+`on_enter` and `on_exit` remain deprecated fallbacks for phases without a specific callback. A named callback takes precedence; it does not also invoke the generic fallback. Generic callbacks can still observe native `focus` sessions. Keyboard focus is deliberately separate from cursor contact.
+
+Try `/interactions` in the demo to inspect the events and durations.
