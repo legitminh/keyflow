@@ -1,6 +1,6 @@
 import { min_box } from './stores/layout.svelte.js';
 import { lockstep_scrolling } from './stores/scroll.svelte.js';
-import { themes, set_theme_id, type Theme } from './stores/theme.svelte.js';
+import { themes, set_theme_id, initialize_theme, type Theme, type ThemeId } from './stores/theme.svelte.js';
 import { readPreference, setStoragePrefix } from './storage.js';
 import { dispatch_key_input, reset_input, has_input_frame_handler } from './input-events.js';
 import { set_available_keys } from './stores/input.js';
@@ -11,7 +11,7 @@ export interface KeyflowOptions {
   /** Namespace for session preferences. Use an empty string for legacy site keys. */
   storagePrefix?: string;
   minBox?: number;
-  themeId?: number;
+  themeId?: ThemeId;
   themes?: Theme[];
   /** Ordered shortcut alphabet. Accepts key_presets or a custom array. */
   keys?: readonly string[];
@@ -33,8 +33,10 @@ export function initializeKeyflow(options: KeyflowOptions = {}) {
   const savedSize = Number(readPreference('min_box'));
   min_box.set(Number.isFinite(savedSize) && savedSize > 0 ? savedSize : (options.minBox ?? 48));
   const savedTheme = readPreference('theme_id');
-  const themeId = savedTheme === null ? (options.themeId ?? 0) : Number(savedTheme);
-  set_theme_id(Number.isInteger(themeId) && themes[themeId] ? themeId : 0);
+  const themeId = savedTheme === null ? (options.themeId ?? 0)
+    : savedTheme === 'system' ? 'system' : Number(savedTheme);
+  set_theme_id(themeId === 'system' || (Number.isInteger(themeId) && themes[themeId]) ? themeId : 0);
+  const cleanup_theme = initialize_theme();
   const savedScroll = readPreference('lockstep_scrolling');
   lockstep_scrolling.set(
     savedScroll === null ? (options.lockstep ?? true) : savedScroll !== 'false'
@@ -64,6 +66,7 @@ export function initializeKeyflow(options: KeyflowOptions = {}) {
   window.addEventListener('focusin', reset_input);
   document.addEventListener('visibilitychange', onVisibilityChange);
   return () => {
+    cleanup_theme();
     window.removeEventListener('compositionstart', reset_input);
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);

@@ -29,7 +29,8 @@ export {
   state_theme,
   set_theme_id,
   get_current_theme,
-  type Theme
+  type Theme,
+  type ThemeId
 } from './stores/theme.svelte.js';
 export {
   page_down,

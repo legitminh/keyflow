@@ -325,7 +325,9 @@ Changing the pool clears partial keyboard input and recalculates all displayed s
 
 ### Theme and layout settings
 
-The original site's `dark` and `light` toggle labels are preserved; supply named themes to change them. `ThemeToggle` cycles all configured themes. Grid size is measured in pixels. Storage failures fall back to in-memory preferences.
+The original site's `dark` and `light` toggle labels describe the ink color and are preserved; supply named themes to change them. `ThemeToggle` cycles all configured palettes, then `system`. System mode follows the operating system's light or dark appearance immediately and when it changes, and keeps the `system` preference across reloads. Set `themeId: 'system'` in the initial options or call `set_theme_id('system')` to select it. Existing numeric IDs and the default initial theme (`0`) are unchanged.
+
+For custom palettes, add `colorScheme: 'light'` or `colorScheme: 'dark'` to each `Theme` to choose which palettes system mode uses and style native browser controls accordingly. Without these fields, system mode uses the first palette for light appearance and the second for dark (or the first when only one exists). `get_current_theme()` returns the resolved palette; `state_theme.theme_id` retains `'system'` while following the OS. Grid size is measured in pixels. Storage failures fall back to in-memory preferences.
 
 Use the exported reactive state for settings controls:
 
@@ -334,6 +336,7 @@ import { min_box, lockstep_scrolling, set_theme_id } from '@legitminh/keyflow';
 min_box.set(48);
 lockstep_scrolling.set(false);
 set_theme_id(0);
+set_theme_id('system');
 ```
 
 Import the stylesheet once at the root. Override `--font-mono` and `--font-geist-mono` in your own stylesheet. Set theme colors through `themes` so switching themes retains your palette. `LineText` and `Indent` follow `--min-box`. Attach `use:must_view` to blocks paging should avoid splitting; blocks taller than a page can still be paged through.

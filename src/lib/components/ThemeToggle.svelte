@@ -3,10 +3,11 @@
   import ButtonPositional from './ButtonPositional.svelte';
 
   function toggle_theme() {
-    set_theme_id((state_theme.theme_id + 1) % themes.length);
+    const current = state_theme.theme_id;
+    set_theme_id(current === 'system' ? 0 : current + 1 < themes.length ? current + 1 : 'system');
   }
 
-  let theme_name = $derived(themes[state_theme.theme_id]?.name ?? 'unknown');
+  let theme_name = $derived(state_theme.theme_id === 'system' ? 'system' : themes[state_theme.theme_id]?.name ?? 'unknown');
 </script>
 
 <ButtonPositional on_close={toggle_theme}>
