@@ -205,6 +205,9 @@ test('real touch drags the core and pointer cancellation ends the drag', async (
 });
 
 test('buttons and virtual keys share stable hues; out-of-range controls have no highlight color', async ({ page }) => {
+  // This fixture mounts 258 routed controls and exercises their offscreen layout.
+  // Shared CI runners need more time than the small interaction fixtures.
+  test.setTimeout(60_000);
   await page.goto('/sliders');
   await page.getByLabel('Show color samples').check();
   for (const [name, key] of [['Escape color', 'escape'], ['Latin color', 'é']]) {
