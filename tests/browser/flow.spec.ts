@@ -37,8 +37,33 @@ test('paged scrolling, hash navigation, and native mode share the camera', async
   await page.goto('/flow');
   await page.getByRole('button', { name: /toggle native scrolling/ }).click();
   await expect(page.locator('.viewport')).toHaveClass(/native-scroll/);
+  const down = page.getByRole('button', { name: /↓$/ });
+  const up = page.getByRole('button', { name: /↑$/ });
+  await expect(down).toBeVisible();
+  await expect(up).toBeVisible();
+  const downShortcut = await down.locator('.pending_route').innerText();
+  const upShortcut = await up.locator('.pending_route').innerText();
+  await page.keyboard.type(downShortcut);
+  await expect.poll(() => page.locator('.viewport').evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+  const firstPage = await page.locator('.viewport').evaluate(node => node.scrollTop);
+  await page.keyboard.type(upShortcut);
+  await expect.poll(() => page.locator('.viewport').evaluate(node => node.scrollTop)).toBeLessThan(firstPage);
+  await page.keyboard.type(upShortcut.repeat(2));
+  await expect.poll(() => page.locator('.viewport').evaluate(node => node.scrollTop)).toBe(0);
+  await down.click();
+  await expect.poll(() => page.locator('.viewport').evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+  await up.click();
+  await up.click();
+  await expect.poll(() => page.locator('.viewport').evaluate(node => node.scrollTop)).toBe(0);
+  await page.locator('.viewport').hover();
   await page.mouse.wheel(0, 700);
   await expect
     .poll(() => page.locator('.viewport').evaluate((node) => node.scrollTop))
     .toBeGreaterThan(0);
+  // Keyboard paging starts from the current wheel position and remains available at the end.
+  const wheelPosition = await page.locator('.viewport').evaluate(node => node.scrollTop);
+  await page.keyboard.type(downShortcut);
+  await expect.poll(() => page.locator('.viewport').evaluate(node => node.scrollTop)).toBeGreaterThan(wheelPosition);
+  await expect(down).toBeVisible();
+  await expect(up).toBeVisible();
 });

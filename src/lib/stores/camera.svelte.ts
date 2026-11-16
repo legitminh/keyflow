@@ -58,6 +58,15 @@ const max_y = () =>
 
 const move_to = (y: number) => {
   state_viewport.y = Math.max(0, Math.min(y, max_y()));
+  if (!lockstep_scrolling.enabled) {
+    const viewport = state_viewport.viewport;
+    if (viewport) {
+      viewport.scrollTop = state_viewport.y;
+      state_viewport.y = viewport.scrollTop;
+    }
+    void y_pixels.set(state_viewport.y, { duration: 0 });
+    return;
+  }
   y_pixels.target = state_viewport.y;
 };
 
@@ -128,7 +137,6 @@ export const update_viewport = () => {
 // goes to whichever is closer: the start of an element cut by the bottom edge, or one full page down.
 // an element is only snapped to if it starts below the top edge, so elements taller than the page still get paged through
 export const page_down = () => {
-  if (!lockstep_scrolling.enabled) return;
   update_viewport(); //this updates before paging down to prevent situation of world dom internal changing between screen resizes
   sync_native_scroll();
   const top = state_viewport.y;
@@ -142,7 +150,6 @@ export const page_down = () => {
 };
 // mirror of page_down: goes to whichever is closer: putting the end of an element cut by the top edge at the bottom, or one full page up
 export const page_up = () => {
-  if (!lockstep_scrolling.enabled) return;
   update_viewport();
   sync_native_scroll();
   const top = state_viewport.y;

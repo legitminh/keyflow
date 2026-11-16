@@ -248,6 +248,10 @@ Run `pnpm demo` and visit `/static` for static sequences, OS previews and dynami
 
 `Image` keeps the original defaults: automatic width and height, `maxWidth="75vw"`, `maxHeight="75vh"`, and `fit="contain"`. Use `width` and `height` (CSS lengths or pixel numbers), `maxWidth`, `maxHeight`, and `fit` to adapt the layout. Native image attributes such as `loading`, `srcset`, `sizes`, and `class` are forwarded. Supply `href` for the image source and `alt` for accessible text. Images register with `must_view` so lockstep paging avoids splitting them when possible.
 
+## Keyboard paging and pointer scrolling
+
+The document’s down/up controls stay available whenever content overflows, including with `lockstep: false`. Their shortcuts and pointer activation still page between content boundaries. `lockstep` controls mouse-wheel and touch scrolling: true converts those gestures to pages; false keeps native scrolling. Keyboard paging starts from the current native scroll position.
+
 ## Configure the flow
 
 Pass initial options to `Keyflow`. They are read on mount; saved session preferences take precedence over initial theme, size, and scrolling defaults.

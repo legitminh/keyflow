@@ -84,7 +84,7 @@
   });
 </script>
 
-{#if lockstep_scrolling.enabled && state_viewport.world_height > 1}
+{#if state_viewport.world_pixels > (state_viewport.viewport?.clientHeight ?? 0)}
   <div class="scroll">
     <Button on_close={page_down} priority={-2}>&downarrow;</Button>
     <Button on_close={page_up} priority={-1}>&uparrow;</Button>
@@ -94,5 +94,6 @@
 <style>
   .scroll {
     height: calc(var(--min-box));
+    flex-shrink: 0;
   }
 </style>
