@@ -119,12 +119,18 @@ test('positional controls enter and leave the automatic pool without changing a 
   const first = page.getByRole('button', { name: /near 1:/ });
   const far = page.getByRole('button', { name: /far:/ });
   await expect(fixed.locator('.pending_route')).toHaveText('ab');
-  await expect(automatic.locator('.pending_route')).toHaveText(/^[cd]$/);
+  await expect(automatic.locator('.pending_route')).toHaveText(/^[cd]+$/);
   await expect(far.locator('.pending_route')).toHaveCount(0);
   await page.getByRole('button', { name: 'Toggle positional controls' }).click();
-  await expect(automatic.locator('.pending_route')).toHaveText('cc');
-  await expect(first.locator('.pending_route')).toHaveText('dc');
-  await expect(page.getByRole('button', { name: /near 2:/ }).locator('.pending_route')).toHaveText('cd');
+  // Native scrolling retains the two persistent paging controls in this pool.
+  await expect(page.getByRole('button', { name: /↓$/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /↑$/ })).toBeVisible();
+  await expect(automatic.locator('.pending_route')).toHaveText(/^[cd]+$/);
+  await expect(first.locator('.pending_route')).toHaveText(/^[cd]+$/);
+  const second = page.getByRole('button', { name: /near 2:/ });
+  await expect(second.locator('.pending_route')).toHaveText(/^[cd]+$/);
+  const routes = await Promise.all([automatic, first, second].map(control => control.locator('.pending_route').innerText()));
+  expect(new Set(routes).size).toBe(3);
   const shortcut = await first.locator('.pending_route').innerText();
   await page.keyboard.type(shortcut);
   await expect(page.getByRole('button', { name: /near 1: 1/ })).toBeVisible();
@@ -132,9 +138,9 @@ test('positional controls enter and leave the automatic pool without changing a 
   await expect(fixed.locator('.enter_route')).toHaveText('a');
   await page.locator('.viewport').evaluate((element) => { element.scrollTop = element.scrollHeight; });
   await expect(far).toBeInViewport();
-  await expect(far.locator('.pending_route')).toHaveText(/^[cd]$/);
+  await expect(far.locator('.pending_route')).toHaveText(/^[cd]+$/);
   await expect(first.locator('.pending_route')).toHaveCount(0);
-  await expect(automatic.locator('.pending_route')).toHaveText(/^[cd]$/);
+  await expect(automatic.locator('.pending_route')).toHaveText(/^[cd]+$/);
   await expect(fixed.locator('.enter_route')).toHaveText('a');
   await page.keyboard.press('b');
   await expect(page.getByRole('button', { name: /fixed: 1/ })).toHaveCount(1);
