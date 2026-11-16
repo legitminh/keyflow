@@ -1,6 +1,6 @@
 {
   "name": "@legitminh/keyflow",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "A keyboard-first, grid-based interaction system for Svelte 5 websites.",
   "type": "module",
   "files": [
