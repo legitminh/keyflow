@@ -250,7 +250,7 @@ Run `pnpm demo` and visit `/static` for static sequences, OS previews and dynami
 
 ## Keyboard paging and pointer scrolling
 
-The document’s down/up controls stay available whenever content overflows, including with `lockstep: false`. Their shortcuts and pointer activation still page between content boundaries. `lockstep` controls mouse-wheel and touch scrolling: true converts those gestures to pages; false keeps native scrolling. Keyboard paging starts from the current native scroll position.
+The document’s down/up controls stay available whenever content overflows, including with `lockstep: false`. Their shortcuts and pointer activation still animate between content boundaries. `lockstep` controls mouse-wheel and touch scrolling: true converts those gestures to pages; false keeps native scrolling. Keyboard paging starts from the current native scroll position and uses smooth native scrolling in that mode.
 
 ## Configure the flow
 

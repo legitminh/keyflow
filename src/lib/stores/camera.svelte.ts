@@ -61,8 +61,7 @@ const move_to = (y: number) => {
   if (!lockstep_scrolling.enabled) {
     const viewport = state_viewport.viewport;
     if (viewport) {
-      viewport.scrollTop = state_viewport.y;
-      state_viewport.y = viewport.scrollTop;
+      viewport.scrollTo({ top: state_viewport.y, behavior: 'smooth' });
     }
     void y_pixels.set(state_viewport.y, { duration: 0 });
     return;

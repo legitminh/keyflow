@@ -67,3 +67,25 @@ test('paged scrolling, hash navigation, and native mode share the camera', async
   await expect(down).toBeVisible();
   await expect(up).toBeVisible();
 });
+
+test('native-mode paging animates through intermediate positions', async ({ page }) => {
+  await page.goto('/flow');
+  await page.getByRole('button', { name: /toggle native scrolling/ }).click();
+  await expect(page.locator('.viewport')).toHaveClass(/native-scroll/);
+  const samples = page.locator('.viewport').evaluate(node => new Promise<number[]>(resolve => {
+    const positions: number[] = [];
+    const sample = () => {
+      positions.push(node.scrollTop);
+      if (positions.length < 24) requestAnimationFrame(sample);
+      else resolve(positions);
+    };
+    requestAnimationFrame(sample);
+  }));
+  await page.getByRole('button', { name: /↓$/ }).click();
+  const positions = await samples;
+  expect(new Set(positions.map(Math.round)).size).toBeGreaterThan(2);
+  expect(positions.at(-1)).toBeGreaterThan(positions[0]);
+  const shortcut = await page.getByRole('button', { name: /↑$/ }).locator('.pending_route').innerText();
+  await page.keyboard.type(shortcut.repeat(3));
+  await expect.poll(() => page.locator('.viewport').evaluate(node => node.scrollTop)).toBe(0);
+});
