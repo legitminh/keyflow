@@ -6,6 +6,7 @@
     Indent,
     Image,
     ButtonPositional,
+    Button,
     Link,
     ThemeToggle,
     min_box,
@@ -14,6 +15,10 @@
   import '../../src/lib/styles.css';
 
   let count = $state(0);
+  const fixture = new URLSearchParams(window.location.search);
+  const scrollKeys = fixture.has('no-scroll-keys') ? false
+    : fixture.has('custom-scroll-keys') ? { down: 'pagedown', up: 'pageup' } : {};
+  const sections = fixture.has('short') ? 0 : 30;
   const demoImage =
     'data:image/svg+xml,' +
     encodeURIComponent(
@@ -22,7 +27,7 @@
 </script>
 
 <Keyflow>
-  <Document>
+  <Document {scrollKeys}>
     <LineText><h1>keyflow</h1></LineText>
     <LineText>Use the key labels, click a control, or swipe to move by a page.</LineText>
     <LineText><ButtonPositional on_close={() => count++}>count: {count}</ButtonPositional></LineText
@@ -34,13 +39,13 @@
       ></LineText
     >
     <LineText
-      ><ButtonPositional on_close={() => lockstep_scrolling.set(!lockstep_scrolling.enabled)}
-        >toggle native scrolling</ButtonPositional
+      ><Button on_close={() => lockstep_scrolling.set(!lockstep_scrolling.enabled)}
+        >toggle native scrolling</Button
       ></LineText
     >
     <LineText><Link href="#destination">jump to destination</Link></LineText>
     <LineText><label>Type here <input aria-label="Example input" /></label></LineText>
-    {#each Array.from({ length: 30 }, (_, i) => i) as i}
+    {#each Array.from({ length: sections }, (_, i) => i) as i}
       <LineText><p>Section {i + 1}: content stays aligned to the grid.</p></LineText>
     {/each}
     <Indent>

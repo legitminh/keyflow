@@ -11,29 +11,96 @@ Unlocks scrollability for content within the world
     sync_native_scroll,
     scroll_to_hash,
     state_viewport,
-    y_pixels
+    page_down,
+    page_up
   } from '../../../stores/camera.svelte.js';
   import { onMount, tick, untrack } from 'svelte';
   import { min_box } from '../../../stores/layout.svelte.js';
   import { lockstep_scrolling } from '../../../stores/scroll.svelte.js';
 
   $effect(() => {
-    void min_box.value; // dependency tracking
-    update_viewport();
+    void min_box.value;
+    untrack(update_viewport);
   });
 
   $effect(() => {
-    const enabled = lockstep_scrolling.enabled;
-    untrack(() => {
-      const viewport = state_viewport.viewport;
-      if (!viewport) return;
-      // Transfer the visible position between native scrolling and the camera.
-      const y = enabled ? viewport.scrollTop : y_pixels.current;
-      void y_pixels.set(y, { duration: 0 });
-      viewport.scrollTop = enabled ? 0 : y;
-      state_viewport.y = enabled ? y : viewport.scrollTop;
-      update_viewport();
-    });
+    const viewport = state_viewport.viewport;
+    if (!lockstep_scrolling.enabled || !viewport) return;
+
+    function wheelHandler(e: WheelEvent) {
+      if (e.ctrlKey || e.deltaY === 0) return;
+      e.preventDefault();
+      if (Date.now() - last_scroll_time > scroll_delay) {
+        if (e.deltaY > 0) {
+          page_down();
+        } else {
+          page_up();
+        }
+        last_scroll_time = Date.now();
+      }
+    }
+
+    // Touch-based swipe -> trigger single page up/down per gesture on mobile.
+    let touchStartY: number | null = null;
+    let lastTouchY: number | null = null;
+    const scroll_delay = 400; // ms
+    let last_scroll_time = 0;
+
+    function touchStart(e: TouchEvent) {
+      if (!e.touches || e.touches.length === 0) return;
+      touchStartY = e.touches[0].clientY;
+      lastTouchY = touchStartY;
+    }
+
+    function touchMove(e: TouchEvent) {
+      if (touchStartY === null || !e.touches.length) return;
+      lastTouchY = e.touches[0].clientY;
+
+      // If the user has moved enough, prevent native scrolling so we
+      // can perform a fixed-step page action on touchend.
+      const moved = Math.abs((lastTouchY ?? 0) - touchStartY) > 10;
+      if (moved) {
+        // preventDefault requires the listener to be non-passive.
+        e.preventDefault();
+      }
+    }
+
+    function touchEnd() {
+      if (touchStartY == null || lastTouchY == null) {
+        touchStartY = null;
+        lastTouchY = null;
+        return;
+      }
+
+      const delta = touchStartY - lastTouchY;
+      const THRESHOLD = 40; // px required to count as a page gesture
+
+      if (Math.abs(delta) >= THRESHOLD) {
+        if (Date.now() - last_scroll_time > scroll_delay) {
+          if (delta > 0) {
+            page_down();
+          } else {
+            page_up();
+          }
+          last_scroll_time = Date.now();
+        }
+      }
+
+      touchStartY = null;
+      lastTouchY = null;
+    }
+
+    viewport.addEventListener('wheel', wheelHandler, { passive: false });
+    viewport.addEventListener('touchstart', touchStart, { passive: true });
+    viewport.addEventListener('touchmove', touchMove, { passive: false });
+    viewport.addEventListener('touchend', touchEnd, { passive: true });
+
+    return () => {
+      viewport.removeEventListener('wheel', wheelHandler as EventListener);
+      viewport.removeEventListener('touchstart', touchStart as EventListener);
+      viewport.removeEventListener('touchmove', touchMove as EventListener);
+      viewport.removeEventListener('touchend', touchEnd as EventListener);
+    };
   });
 
   onMount(() => {
@@ -60,25 +127,19 @@ Unlocks scrollability for content within the world
   class:native-scroll={!lockstep_scrolling.enabled}
   class="viewport"
 >
-  <div
-    bind:this={state_viewport.world}
-    class="world"
-    style:transform={lockstep_scrolling.enabled ? `translateY(-${y_pixels.current}px)` : undefined}
-  >
+  <div bind:this={state_viewport.world} class="world">
     {@render children()}
   </div>
 </div>
 
 <style>
   .world {
+    display: flow-root;
     position: relative;
     z-index: 1;
   }
   .viewport {
     flex-grow: 1;
-    overflow: hidden;
-  }
-  .viewport.native-scroll {
     min-height: 0;
     overflow-y: auto;
   }

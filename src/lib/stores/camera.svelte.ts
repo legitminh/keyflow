@@ -1,18 +1,11 @@
 import { min_box } from './layout.svelte';
-import { lockstep_scrolling } from './scroll.svelte';
-import { flushSync } from 'svelte';
-import {
-  cubicOut
-  // quintOut,
-  // expoOut,
-  // quartOut,
-  // cubicInOut
-} from 'svelte/easing';
+import { cubicOut } from 'svelte/easing';
 import { Tween } from 'svelte/motion';
 
 class StateViewport {
   viewport_width = $state(0); // min_box
   viewport = $state<HTMLDivElement | undefined>(undefined); //div that describe the viewport the camera is capable of viewing
+  viewport_pixels = $state(0); // height in pixels
   viewport_height = $state(0); // min_box
   y = $state(0); // pixels from the top of the world to the top of the viewport
   world_height = $state(0); // height in min_box_blocks
@@ -21,6 +14,7 @@ class StateViewport {
 }
 export const state_viewport = new StateViewport();
 
+/** Legacy position mirror. Use scroll_to() to move the document. */
 export const y_pixels = new Tween(0, {
   duration: 300,
   easing: cubicOut
@@ -48,44 +42,23 @@ const must_view_spans = () => {
 // one page is the viewport height rounded down to whole min_boxes
 const page_pixels = () => state_viewport.viewport_height * min_box.value;
 
-// the furthest the camera may go while still showing some of the world
-const max_y = () =>
-  Math.max(
-    0,
-    state_viewport.world_pixels -
-      (lockstep_scrolling.enabled ? min_box.value : (state_viewport.viewport?.clientHeight ?? 0))
-  );
+// Native scrolling is the source of truth in both pointer modes.
+const max_y = () => Math.max(0, state_viewport.world_pixels - state_viewport.viewport_pixels);
 
-const move_to = (y: number) => {
-  state_viewport.y = Math.max(0, Math.min(y, max_y()));
-  if (!lockstep_scrolling.enabled) {
-    const viewport = state_viewport.viewport;
-    if (viewport) {
-      viewport.scrollTo({ top: state_viewport.y, behavior: 'smooth' });
-    }
-    void y_pixels.set(state_viewport.y, { duration: 0 });
-    return;
-  }
-  y_pixels.target = state_viewport.y;
-};
-
-// Fragment navigation can scroll an overflow-hidden viewport independently of
-// our transform. Absorb that offset so paging continues from the visible position.
 export const sync_native_scroll = () => {
   const viewport = state_viewport.viewport;
   if (!viewport) return;
-  if (!lockstep_scrolling.enabled) {
-    state_viewport.y = viewport.scrollTop;
-    return;
-  }
-  if (viewport.scrollTop === 0) return;
+  state_viewport.y = viewport.scrollTop;
+  // Keep the public camera position in sync for existing integrations.
+  void y_pixels.set(viewport.scrollTop, { duration: 0 });
+};
 
-  const y = Math.max(0, Math.min(y_pixels.current + viewport.scrollTop, max_y()));
-  flushSync(() => {
-    state_viewport.y = y;
-    void y_pixels.set(y, { duration: 0 });
-  });
-  viewport.scrollTop = 0;
+/** Scroll to a pixel position in the document; use instant for screen restoration. */
+export const scroll_to = (y: number, behavior: ScrollBehavior = 'smooth') => {
+  if (!Number.isFinite(y)) return;
+  update_viewport();
+  state_viewport.viewport?.scrollTo({ top: Math.max(0, Math.min(y, max_y())), behavior });
+  sync_native_scroll();
 };
 
 export const scroll_to_hash = () => {
@@ -100,26 +73,13 @@ export const scroll_to_hash = () => {
   const target = document.getElementById(id);
   if (!target || !world.contains(target)) return;
 
-  update_viewport();
-  const y = Math.max(
-    0,
-    Math.min(target.getBoundingClientRect().top - world.getBoundingClientRect().top, max_y())
-  );
-  if (!lockstep_scrolling.enabled) {
-    viewport.scrollTop = y;
-    state_viewport.y = viewport.scrollTop;
-    return;
-  }
-  flushSync(() => {
-    state_viewport.y = y;
-    void y_pixels.set(y, { duration: 0 });
-  });
-  viewport.scrollTop = 0;
+  scroll_to(target.getBoundingClientRect().top - world.getBoundingClientRect().top, 'instant');
 };
 
 export const update_viewport = () => {
   if (state_viewport.viewport && state_viewport.world) {
     const viewport_rect = state_viewport.viewport.getBoundingClientRect();
+    state_viewport.viewport_pixels = state_viewport.viewport.clientHeight;
     state_viewport.viewport_width = Math.floor(viewport_rect.width / min_box.value);
     const viewport_height = Math.max(1, Math.floor(viewport_rect.height / min_box.value)); // in min_box rounded down
 
@@ -129,7 +89,7 @@ export const update_viewport = () => {
     state_viewport.world_height = Math.ceil(
       state_viewport.world_pixels / viewport_height / min_box.value
     );
-    if (state_viewport.y > max_y()) move_to(state_viewport.y);
+    sync_native_scroll();
   }
 };
 
@@ -137,7 +97,6 @@ export const update_viewport = () => {
 // an element is only snapped to if it starts below the top edge, so elements taller than the page still get paged through
 export const page_down = () => {
   update_viewport(); //this updates before paging down to prevent situation of world dom internal changing between screen resizes
-  sync_native_scroll();
   const top = state_viewport.y;
   const bottom = top + page_pixels();
   if (bottom >= state_viewport.world_pixels) return; // nothing below the viewport
@@ -145,23 +104,16 @@ export const page_down = () => {
   for (const { start, end } of must_view_spans()) {
     if (start > top && start < bottom && end > bottom) target = Math.min(target, start);
   }
-  move_to(target);
+  scroll_to(target);
 };
 // mirror of page_down: goes to whichever is closer: putting the end of an element cut by the top edge at the bottom, or one full page up
 export const page_up = () => {
   update_viewport();
-  sync_native_scroll();
   const top = state_viewport.y;
   const bottom = top + page_pixels();
   let target = top - page_pixels();
   for (const { start, end } of must_view_spans()) {
     if (end < bottom && end > top && start < top) target = Math.max(target, end - page_pixels());
   }
-  move_to(target);
+  scroll_to(target);
 };
-
-// let box = $derived(Math.max(1, $min_box || 1));
-// export const columns = writable(0);
-// $derived(Math.max(1, Math.floor(viewport_width / box)));
-// export let rows = $derived(Math.max(1, Math.floor(viewport_height / box)));
-// let cells = $derived(Array.from({ length: columns * rows }, (_, index) => index + 1));

@@ -35,6 +35,7 @@ export {
 export {
   page_down,
   page_up,
+  scroll_to,
   scroll_to_hash,
   update_viewport,
   state_viewport,
@@ -93,3 +94,5 @@ export { default as VerticalHoverSlider } from './components/VerticalHoverSlider
 export { default as HorizontalPositionalSlider } from './components/HorizontalPositionalSlider.svelte';
 export { default as VerticalPositionalSlider } from './components/VerticalPositionalSlider.svelte';
 export { normalize_slider_value, type SliderController, type SliderDirection, type SliderCoreProps, type SliderProps, type HoverSliderProps } from './slider.js';
+
+export type { ScrollKeys } from './scroll.js';

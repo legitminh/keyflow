@@ -250,7 +250,11 @@ Run `pnpm demo` and visit `/static` for static sequences, OS previews and dynami
 
 ## Keyboard paging and pointer scrolling
 
-The document’s down/up controls stay available whenever content overflows, including with `lockstep: false`. Their shortcuts and pointer activation still animate between content boundaries. `lockstep` controls mouse-wheel and touch scrolling: true converts those gestures to pages; false keeps native scrolling. Keyboard paging starts from the current native scroll position and uses smooth native scrolling in that mode.
+The document’s down/up controls stay available whenever content overflows, including with `lockstep: false`. Their shortcuts and pointer activation still animate between content boundaries. `lockstep` controls mouse-wheel and touch scrolling: true converts those gestures to pages; false keeps native scrolling. Both modes use the same smooth native scroll function and current position, including after wheel scrolling. The preference never disables keyboard paging.
+
+Use `<Document scrollKeys={{ down: 'pagedown', up: 'pageup' }}>` to customize the paging shortcuts. Omitted directions keep automatic shortcuts. Use `<Document scrollKeys={false}>` to omit the controls, or mount `Camera` on its own for a scrollable region without default keys. When using `Camera` with a separate `ScrollIndicator`, pass the same configuration as its `keys` prop. Wheel/touch paging is owned by `Camera` and continues to follow the pointer preference even without an indicator.
+
+`scroll_to(y, behavior = 'smooth')` scrolls to a clamped pixel position in either mode. Use `scroll_to(savedPosition, 'instant')` after updating a screen to restore its position. `state_viewport.y` always reflects the current visible position; consumers do not need to change camera transforms or native offsets themselves. Migrate integrations that assigned `state_viewport.y` or `y_pixels` directly to `scroll_to()`. `y_pixels` remains a readable position mirror for compatibility.
 
 ## Configure the flow
 
@@ -345,7 +349,7 @@ set_theme_id('system');
 
 Import the stylesheet once at the root. Override `--font-mono` and `--font-geist-mono` in your own stylesheet. Set theme colors through `themes` so switching themes retains your palette. `LineText` and `Indent` follow `--min-box`. Attach `use:must_view` to blocks paging should avoid splitting; blocks taller than a page can still be paged through.
 
-Native mode preserves the visible scroll position when switching to or from lockstep mode. `Camera` observes viewport and content size changes and handles initial hashes and `hashchange`. Host routers should call `scroll_to_hash()` after their DOM update. For SvelteKit, put this in the root layout:
+Switching pointer modes preserves the visible native scroll position, including during an animation. `Camera` observes viewport and content size changes and handles initial hashes and `hashchange`. Host routers should call `scroll_to_hash()` after their DOM update. For SvelteKit, put this in the root layout:
 
 ```ts
 import { afterNavigate } from '$app/navigation';
