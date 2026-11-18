@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy, tick, untrack, type Snippet } from 'svelte';
   import { get } from 'svelte/store';
+  import { SvelteSet } from 'svelte/reactivity';
   import { active_input_frame, create_input_frame, input_frame_manager } from '../input-frames.js';
   import { get_input_frame } from '../input-frame-context.js';
   import { create_static_token } from '../stores/static-input.js';
@@ -11,6 +12,10 @@
   import { interaction } from '../actions/interaction.js';
   import InputFrame from './InputFrame.svelte';
   import Button from './Button.svelte';
+  import Camera from './scroll/vertical/Camera.svelte';
+  import ScrollIndicator from './scroll/vertical/ScrollIndicator.svelte';
+  import { visibility } from '../actions/visibility.js';
+  import { observe_viewports, refresh_viewports, usable_viewport } from '../viewport.js';
   import StaticButton from './StaticButton.svelte';
   import ButtonDisplay from './ButtonDisplay.svelte';
   import StaticButtonDisplay from './StaticButtonDisplay.svelte';
@@ -18,7 +23,7 @@
 
   let { label = 'Menu', items = [], children, triggerContent, itemDisplay,
     enterTrigger, exitTrigger = 'escape', priority = 0, open = $bindable(false),
-    disabled = false, showTrigger = true, closeOnSelect = true, closeOnOutside = true,
+    disabled = false, registered = true, showTrigger = true, closeOnSelect = true, closeOnOutside = true,
     backLabel = 'Back', onopen, onclose, onselect, class: className = '',
     on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit, on_enter, on_exit
   }: {
@@ -28,7 +33,7 @@
     triggerContent?: Snippet<[SubKeyframeContext]>;
     itemDisplay?: Snippet<[SubKeyframeItem, SubKeyframeContext]>;
     enterTrigger?: Shortcut | null; exitTrigger?: Shortcut | null; priority?: number;
-    open?: boolean; disabled?: boolean; showTrigger?: boolean;
+    open?: boolean; disabled?: boolean; registered?: boolean; showTrigger?: boolean;
     closeOnSelect?: boolean; closeOnOutside?: boolean; backLabel?: string;
     onopen?: (context: SubKeyframeContext) => void;
     onclose?: (context: SubKeyframeContext) => void;
@@ -46,9 +51,12 @@
   let trigger = $state<HTMLButtonElement>();
   let opener: HTMLElement | undefined;
   let mounted = $state(false);
+  let triggerVisible = $state(false);
   let unsubscribe: (() => void) | undefined;
   let included = false;
   let restoreOnClose = true;
+  const visibleItems = new SvelteSet<string | SubKeyframeItem>();
+  let parentScroll: { node: HTMLElement; top: number; left: number } | undefined;
   const active = $derived($active_input_frame === frame);
   const handlers = () => ({ on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit, on_enter, on_exit });
   const entry = create_static_token(() => { void enter(); });
@@ -70,6 +78,8 @@
     if (!mounted || disabled || included || get(active_input_frame) !== parent) return;
     opener = trigger ?? (document.activeElement instanceof HTMLElement && document.activeElement !== document.body
       ? document.activeElement : undefined);
+    const scroller = root.parentElement?.closest<HTMLElement>('[data-keyflow-scroll-viewport]');
+    parentScroll = scroller ? { node: scroller, top: scroller.scrollTop, left: scroller.scrollLeft } : undefined;
     frame.activate();
     await tick();
   }
@@ -85,7 +95,7 @@
   }
   function focusable() {
     return [...(panel?.querySelectorAll<HTMLElement>('button, a[href], input, textarea, select, [tabindex]') ?? [])]
-      .filter((node) => !node.matches(':disabled') && node.tabIndex >= 0 && node.getClientRects().length > 0);
+      .filter((node) => !node.matches(':disabled') && !node.closest('[data-keyflow-scroll-controls]') && node.tabIndex >= 0 && node.getClientRects().length > 0);
   }
   function navigate(event: KeyboardEvent) {
     if (!active || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey ||
@@ -100,6 +110,8 @@
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? nodes.length - 1
       : (index + (event.key === 'ArrowDown' ? 1 : -1) + nodes.length) % nodes.length;
     nodes[next].focus({ preventScroll: true });
+    nodes[next].scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+    refresh_viewports();
   }
   function outside(event: MouseEvent) {
     if (!event.isTrusted || !closeOnOutside || !included || event.button !== 0 || event.composedPath().includes(root)) return;
@@ -112,7 +124,7 @@
   $effect(() => {
     const keys = enterTrigger;
     const order = priority;
-    if (disabled || keys === null) return;
+    if (disabled || !registered || keys === null || (keys === undefined && showTrigger && !triggerVisible)) return;
     untrack(() => parent.update(automatic, order));
     return untrack(() => keys === undefined ? parent.register(automatic) : parent.static_input.register(entry, keys));
   });
@@ -137,6 +149,14 @@
     const initiallyOpen = open;
     mounted = true;
     window.addEventListener('click', outside, true);
+    const stop = observe_viewports(() => {
+      if (!panel) return;
+      const bounds = usable_viewport(panel);
+      const available = Math.max(0, bounds.bottom - bounds.top);
+      const height = available;
+      const next = `${Math.floor(height)}px`;
+      if (panel.style.maxHeight !== next) panel.style.maxHeight = next;
+    });
     unsubscribe = stack.subscribe((frames) => untrack(() => {
       const next = frames.includes(frame);
       const changed = next !== included;
@@ -146,19 +166,23 @@
       if (next) {
         onopen?.(context);
         void tick().then(() => {
-          if (mounted && get(active_input_frame) === frame) (focusable()[0] ?? panel)?.focus({ preventScroll: true });
+          if (mounted && get(active_input_frame) === frame) { refresh_viewports(); panel?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' }); refresh_viewports(); const first = focusable()[0] ?? panel; first?.focus({ preventScroll: true }); first?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' }); refresh_viewports(); }
         });
       } else {
         const restore = restoreOnClose;
         restoreOnClose = true;
         onclose?.(context);
         void tick().then(() => {
-          if (restore && mounted && !included && get(active_input_frame) === parent && opener?.isConnected && !disabled) opener.focus({ preventScroll: true });
+          if (restore && mounted && !included && get(active_input_frame) === parent && opener?.isConnected && !disabled) {
+            parentScroll?.node.scrollTo({ top: parentScroll.top, left: parentScroll.left, behavior: 'instant' });
+            opener.focus({ preventScroll: true });
+            refresh_viewports();
+          }
         });
       }
     }));
     if (initiallyOpen) void enter();
-    return () => window.removeEventListener('click', outside, true);
+    return () => { stop(); window.removeEventListener('click', outside, true); };
   });
   onDestroy(() => {
     mounted = false;
@@ -172,6 +196,7 @@
   {#if showTrigger}
     <button type="button" class="subkeyframe-trigger" bind:this={trigger} aria-label={label}
       aria-expanded={open} aria-controls={panelId} disabled={disabled || (!open && $active_input_frame !== parent)}
+      use:visibility={{ onFullyVisible: () => triggerVisible = true, onHidden: () => triggerVisible = false }}
       use:interaction={{ controller: input_token_interaction(triggerToken), disabled: disabled || (!open && $active_input_frame !== parent) }}
       onclick={() => { if (included) exit(); else parent.trigger(triggerToken, false); }}>
       {#snippet caption()}{#if triggerContent}{@render triggerContent(context)}{:else}{label}{/if}{/snippet}
@@ -183,21 +208,22 @@
   <InputFrame {frame}>
     {#if open}
       <section id={panelId} class="subkeyframe-panel" aria-label={label} tabindex="-1" bind:this={panel}>
+        <Camera class="subkeyframe-viewport" worldClass="subkeyframe-world">
         {#if items.length}
           <ul class="subkeyframe-items">
             {#each items as item (item.id ?? item)}
-              <li>
+              <li use:visibility={{ onFullyVisible: () => visibleItems.add(item.id ?? item), onHidden: () => visibleItems.delete(item.id ?? item) }}>
                 {#snippet content()}{#if itemDisplay}{@render itemDisplay(item, context)}{:else}{item.label}{/if}{/snippet}
                 {#if item.items}
-                  <SubKeyframe label={item.label} items={item.items} enterTrigger={item.keys} disabled={item.disabled}
+                  <SubKeyframe label={item.label} items={item.items} enterTrigger={item.keys} disabled={item.disabled} registered={visibleItems.has(item.id ?? item)}
                     {exitTrigger} closeOnSelect={item.closeOnSelect ?? closeOnSelect} {closeOnOutside} {backLabel} {onselect} {itemDisplay} triggerContent={content}
                     on_pressed_down={item.on_pressed_down} on_pressed_up={item.on_pressed_up}
                     on_cursor_enter={item.on_cursor_enter} on_cursor_exit={item.on_cursor_exit}
                     on_enter={item.on_enter} on_exit={item.on_exit} />
                 {:else if item.keys !== undefined}
-                  <StaticButton {...item} keys={item.keys} on_close={() => select(item)} children={content} />
+                  <StaticButton {...item} registered={visibleItems.has(item.id ?? item)} keys={item.keys} on_close={() => select(item)} children={content} />
                 {:else}
-                  <Button {...item} on_close={() => select(item)} children={content} />
+                  <Button {...item} registered={visibleItems.has(item.id ?? item)} on_close={() => select(item)} children={content} />
                 {/if}
               </li>
             {/each}
@@ -210,6 +236,8 @@
           {#snippet backContent()}{backLabel}{/snippet}
           {#if exitTrigger !== null}<StaticButtonDisplay token={back} children={backContent} />{:else}{backLabel}{/if}
         </button>
+        </Camera>
+        <ScrollIndicator />
       </section>
     {/if}
   </InputFrame>
@@ -217,7 +245,8 @@
 
 <style>
   .keyflow-subkeyframe { display: inline-block; position: relative; }
-  .subkeyframe-panel { display: flex; flex-direction: column; gap: .5rem; padding: .5rem; border: 1px solid currentColor; background: var(--background, #fff); }
+  .subkeyframe-panel { box-sizing: border-box; max-height: calc(100dvh - 1rem); overflow: hidden; display: flex; flex-direction: column; gap: .5rem; padding: .5rem; border: 1px solid currentColor; background: var(--background, #fff); }
+  .subkeyframe-panel :global(.subkeyframe-world) { display: flex; flex-direction: column; gap: .5rem; }
   .subkeyframe-items { display: flex; flex-direction: column; gap: .25rem; list-style: none; margin: 0; padding: 0; }
   .subkeyframe-items :global(button), .subkeyframe-back { text-align: start; }
 </style>

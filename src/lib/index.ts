@@ -96,3 +96,5 @@ export { default as VerticalPositionalSlider } from './components/VerticalPositi
 export { normalize_slider_value, type SliderController, type SliderDirection, type SliderCoreProps, type SliderProps, type HoverSliderProps } from './slider.js';
 
 export type { ScrollKeys } from './scroll.js';
+
+export { scroll_obstruction } from './viewport.js';

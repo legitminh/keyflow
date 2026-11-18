@@ -97,3 +97,24 @@ Each item has `label`, optional stable `id`, `keys`, `disabled`, `on_select(item
 The component uses `section`, `ul`, and native button semantics rather than claiming an ARIA application menu. It supplies disclosure state, focus management, shortcuts and arrow navigation while remaining easy to extend with native inputs or custom controls.
 
 Run `/menus` in the demo for list items, nested menus, custom content, an embedded editor, reactive bindings and lifecycle controls.
+
+## Scroll pages and fixed overlays
+
+Every menu has its own bounded camera and paging controls. Wheel/touch input scrolls the active menu instead of its parent document, including in lockstep mode. Nested menus retain independent positions; Back restores the parent's position and trigger focus. Arrow navigation reveals focused controls inside the menu. Native scrolling remains native when lockstep is disabled.
+
+Panels fit the unobstructed visual viewport and their clipping ancestors. Fixed keyboards, fixed navigation bars and stuck sticky toolbars reduce this viewport. Paging controls stay above bottom overlays. Resizing, scrolling, changing keyboard height, hiding overlays and visual-viewport changes recalculate the bounds.
+
+Declared items (including fixed-key items) register only while fully visible in their menu's usable viewport. Back/Escape remains available even when the Back control is offscreen. Custom `Button` / `StaticButton` controls retain their normal persistent policy; set `registered={false}` to suspend only their binding while keeping the native control focusable. `SubKeyframe` also accepts `registered` for controlled entry registration.
+
+Fixed and sticky elements are detected automatically. For an absolutely positioned overlay, explicitly reserve its bounds with the exported action:
+
+```svelte
+<script>
+  import { scroll_obstruction } from '@legitminh/keyflow';
+</script>
+<div class="floating-toolbar" use:scroll_obstruction>...</div>
+```
+
+Inline elements keep their normal layout space; reserve only UI that actually overlays scrollable content. An obstruction does not clip its own descendants, so keys on an overlaid virtual keyboard remain usable.
+
+`Camera` and `ScrollIndicator` use their nearest input frame. `page_down`, `page_up` and `scroll_to` target the active frame's camera, falling back through the frame stack for frames without a camera. The legacy `state_viewport` and `y_pixels` exports continue to describe the root document. `Camera` accepts `class` and `worldClass` styling hooks; the default root classes remain `viewport` and `world`.

@@ -145,6 +145,8 @@ Keyboard components accept shared defaults and per-key overrides. The `interacti
 ]} />
 ```
 
+Each menu is a bounded scroll page with independent paging, visibility-gated items and parent scroll restoration. Fixed keyboards/navigation bars and sticky toolbars restrict the usable viewport; `scroll_obstruction` marks other overlaid UI.
+
 Use `children(context)` to append custom controls, `bind:open` for state, or `bind:this` for `enter()` / `exit()` / `toggle()`. See the [SubKeyframe guide](docs/subkeyframes.md) or run `/menus`.
 
 ### Sliders and key colors

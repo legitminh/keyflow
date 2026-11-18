@@ -1,5 +1,6 @@
 import { mount } from 'svelte';
 import App from './App.svelte';
+import ScrollFramesDemo from './ScrollFramesDemo.svelte';
 import StaticDemo from './StaticDemo.svelte';
 import StackDemo from './StackDemo.svelte';
 import FramesDemo from './FramesDemo.svelte';
@@ -9,7 +10,8 @@ import MenusDemo from './MenusDemo.svelte';
 import ControlsDemo from './ControlsDemo.svelte';
 import SlidersDemo from './SlidersDemo.svelte';
 import ThemeDemo from './ThemeDemo.svelte';
-const component = window.location.pathname === '/flow' ? App
+const component = window.location.pathname === '/scrollframes' ? ScrollFramesDemo
+  : window.location.pathname === '/flow' ? App
   : window.location.pathname === '/stack' ? StackDemo
   : window.location.pathname === '/frames' ? FramesDemo
   : window.location.pathname === '/mixed' ? MixedDemo

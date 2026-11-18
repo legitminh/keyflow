@@ -9,8 +9,8 @@
   import { get_input_frame } from '../input-frame-context.js';
   const frame = get_input_frame();
   const { static_input } = frame;
-  let { keys, on_close = () => {}, disabled = false, on_enter, on_exit, on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit, children, myToken = $bindable() }: {
-    keys: Shortcut; on_close?: () => void; disabled?: boolean; children?: Snippet; myToken?: StaticInputToken;
+  let { keys, on_close = () => {}, disabled = false, registered = true, on_enter, on_exit, on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit, children, myToken = $bindable() }: {
+    keys: Shortcut; on_close?: () => void; disabled?: boolean; registered?: boolean; children?: Snippet; myToken?: StaticInputToken;
   } & InteractionHandlers = $props();
   const token = create_static_token(() => on_close());
   token.on_enter = (event) => on_enter?.(event);
@@ -23,7 +23,7 @@
   const descriptionId = $props.id();
   $effect(() => {
     myToken = token;
-    if (!disabled) return static_input.register(token, keys);
+    if (!disabled && registered) return static_input.register(token, keys);
   });
 </script>
 

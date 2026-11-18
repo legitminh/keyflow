@@ -4,37 +4,42 @@ Unlocks scrollability for content within the world
 
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  let { children }: { children: Snippet } = $props();
+  let { children, class: className = 'viewport', worldClass = 'world' }: { children: Snippet; class?: string; worldClass?: string } = $props();
 
   import {
     update_viewport,
     sync_native_scroll,
     scroll_to_hash,
-    state_viewport,
+    viewport_for, active_viewport,
     page_down,
     page_up
   } from '../../../stores/camera.svelte.js';
   import { onMount, tick, untrack } from 'svelte';
   import { min_box } from '../../../stores/layout.svelte.js';
   import { lockstep_scrolling } from '../../../stores/scroll.svelte.js';
+  import { get_input_frame } from '../../../input-frame-context.js';
+  import { observe_viewports, invalidate_viewports } from '../../../viewport.js';
+  const camera = viewport_for(get_input_frame());
+  const measure = () => update_viewport(camera);
+  const hash = () => scroll_to_hash(camera);
 
   $effect(() => {
     void min_box.value;
-    untrack(update_viewport);
+    untrack(measure);
   });
 
   $effect(() => {
-    const viewport = state_viewport.viewport;
+    const viewport = camera.viewport;
     if (!lockstep_scrolling.enabled || !viewport) return;
 
     function wheelHandler(e: WheelEvent) {
-      if (e.ctrlKey || e.deltaY === 0) return;
+      if (active_viewport() !== camera || (e.target instanceof Element && e.target.closest('[data-keyflow-scroll-viewport]') !== viewport) || e.ctrlKey || e.deltaY === 0) return;
       e.preventDefault();
       if (Date.now() - last_scroll_time > scroll_delay) {
         if (e.deltaY > 0) {
-          page_down();
+          page_down(camera);
         } else {
-          page_up();
+          page_up(camera);
         }
         last_scroll_time = Date.now();
       }
@@ -47,7 +52,7 @@ Unlocks scrollability for content within the world
     let last_scroll_time = 0;
 
     function touchStart(e: TouchEvent) {
-      if (!e.touches || e.touches.length === 0) return;
+      if (active_viewport() !== camera || (e.target instanceof Element && e.target.closest('[data-keyflow-scroll-viewport]') !== viewport) || !e.touches?.length) return;
       touchStartY = e.touches[0].clientY;
       lastTouchY = touchStartY;
     }
@@ -78,9 +83,9 @@ Unlocks scrollability for content within the world
       if (Math.abs(delta) >= THRESHOLD) {
         if (Date.now() - last_scroll_time > scroll_delay) {
           if (delta > 0) {
-            page_down();
+            page_down(camera);
           } else {
-            page_up();
+            page_up(camera);
           }
           last_scroll_time = Date.now();
         }
@@ -105,40 +110,46 @@ Unlocks scrollability for content within the world
 
   onMount(() => {
     void tick().then(() => {
-      update_viewport();
-      scroll_to_hash();
+      measure();
+      hash();
     });
-    const observer = new ResizeObserver(update_viewport);
-    if (state_viewport.viewport) observer.observe(state_viewport.viewport);
-    if (state_viewport.world) observer.observe(state_viewport.world);
-    window.addEventListener('hashchange', scroll_to_hash);
-    window.addEventListener('resize', update_viewport);
+    const observer = new ResizeObserver(invalidate_viewports);
+    if (camera.viewport) observer.observe(camera.viewport);
+    if (camera.world) observer.observe(camera.world);
+    const stop = observe_viewports(measure);
+    window.addEventListener('hashchange', hash);
+    window.addEventListener('resize', measure);
     return () => {
       observer.disconnect();
-      window.removeEventListener('hashchange', scroll_to_hash);
-      window.removeEventListener('resize', update_viewport);
+      stop();
+      window.removeEventListener('hashchange', hash);
+      window.removeEventListener('resize', measure);
+      camera.viewport = undefined; camera.world = undefined;
     };
   });
 </script>
 
 <div
-  bind:this={state_viewport.viewport}
-  onscroll={sync_native_scroll}
+  bind:this={camera.viewport}
+  data-keyflow-scroll-viewport
+  onscroll={() => { sync_native_scroll(camera); invalidate_viewports(); }}
   class:native-scroll={!lockstep_scrolling.enabled}
-  class="viewport"
+  class={className}
 >
-  <div bind:this={state_viewport.world} class="world">
+  <div bind:this={camera.world} class={worldClass} data-keyflow-scroll-world>
     {@render children()}
   </div>
 </div>
 
 <style>
-  .world {
+  [data-keyflow-scroll-world] {
+    box-sizing: border-box;
     display: flow-root;
     position: relative;
     z-index: 1;
   }
-  .viewport {
+  [data-keyflow-scroll-viewport] {
+    overscroll-behavior: contain;
     flex-grow: 1;
     min-height: 0;
     overflow-y: auto;

@@ -8,8 +8,9 @@
   import type { InputToken } from '../stores/input.js';
   import { active_input_frame } from '../input-frames.js';
   import { get_input_frame } from '../input-frame-context.js';
-  import { state_viewport } from '../stores/camera.svelte.js';
+  import { viewport_for } from '../stores/camera.svelte.js';
   const frame = get_input_frame();
+  const camera = viewport_for(frame);
 
   let {
     children = undefined,
@@ -45,7 +46,7 @@
     const token = myToken;
     const explicitPriority = priority;
     // Re-measure when the camera or element becomes available, without tracking token writes.
-    state_viewport.world;
+    camera.world;
     element;
     if (!token) return;
     untrack(() => {
@@ -64,9 +65,9 @@
   const is_positional_priority = $derived(priority === undefined);
 
   function update_priority() {
-    if (is_positional_priority && state_viewport.world && element && myToken) {
+    if (is_positional_priority && camera.world && element && myToken) {
       const rect = element.getBoundingClientRect();
-      const world_rect = state_viewport.world?.getBoundingClientRect();
+      const world_rect = camera.world?.getBoundingClientRect();
       myToken.priority =
         (rect.top - world_rect.top) * window.innerWidth + (rect.left - world_rect.left);
       frame.update(myToken, myToken.priority);
@@ -80,10 +81,10 @@
     // Dynamically mounted controls should enter the list in their measured position.
     update_priority();
 
-    window.addEventListener('scroll', update_priority, { passive: true });
+    window.addEventListener('scroll', update_priority, { passive: true, capture: true });
     window.addEventListener('resize', update_priority);
     return () => {
-      window.removeEventListener('scroll', update_priority);
+      window.removeEventListener('scroll', update_priority, true);
       window.removeEventListener('resize', update_priority);
       resizeObserver.disconnect();
     };

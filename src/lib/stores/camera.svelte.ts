@@ -1,119 +1,113 @@
 import { min_box } from './layout.svelte';
 import { cubicOut } from 'svelte/easing';
 import { Tween } from 'svelte/motion';
+import { get } from 'svelte/store';
+import { input_frame_manager, root_input_frame, type InputFrameController } from '../input-frames.js';
+import { client_bounds, usable_viewport } from '../viewport.js';
 
 class StateViewport {
-  viewport_width = $state(0); // min_box
-  viewport = $state<HTMLDivElement | undefined>(undefined); //div that describe the viewport the camera is capable of viewing
-  viewport_pixels = $state(0); // height in pixels
-  viewport_height = $state(0); // min_box
-  y = $state(0); // pixels from the top of the world to the top of the viewport
-  world_height = $state(0); // height in min_box_blocks
-  world_pixels = $state(0); // height in pixels
-  world = $state<HTMLDivElement | undefined>(undefined); //div that describe the world the camera is capable of viewing
+  viewport_width = $state(0);
+  viewport = $state<HTMLDivElement>();
+  viewport_pixels = $state(0);
+  viewport_height = $state(0);
+  y = $state(0);
+  world_height = $state(0);
+  world_pixels = $state(0);
+  world = $state<HTMLDivElement>();
+  inset_top = $state(0);
+  inset_bottom = $state(0);
 }
+/** Legacy root camera. Menu cameras never overwrite the root's position or bounds. */
 export const state_viewport = new StateViewport();
-
-/** Legacy position mirror. Use scroll_to() to move the document. */
-export const y_pixels = new Tween(0, {
-  duration: 300,
-  easing: cubicOut
-});
-
-// elements on the page that paging should avoid cutting at the bottom edge, registered by the must_view action
+const cameras = new WeakMap<InputFrameController, StateViewport>([[root_input_frame, state_viewport]]);
+export function viewport_for(frame: InputFrameController) {
+  let camera = cameras.get(frame);
+  if (!camera) { camera = new StateViewport(); cameras.set(frame, camera); }
+  return camera;
+}
+export function active_viewport() {
+  for (const frame of [...get(input_frame_manager.stack)].reverse()) {
+    const camera = cameras.get(frame);
+    if (camera?.viewport?.isConnected) return camera;
+  }
+  return state_viewport;
+}
+/** Legacy root position mirror. Use scroll_to() for the active scroll frame. */
+export const y_pixels = new Tween(0, { duration: 300, easing: cubicOut });
 const must_views = new Set<HTMLElement>();
-export const register_must_view = (node: HTMLElement) => {
-  must_views.add(node);
-  return () => {
-    must_views.delete(node);
-  };
+export const register_must_view = (node: HTMLElement) => { must_views.add(node); return () => { must_views.delete(node); }; };
+const must_view_spans = (camera: StateViewport) => {
+  if (!camera.world) return [];
+  const top = camera.world.getBoundingClientRect().top + camera.inset_top;
+  return [...must_views].filter((node) => node.closest('[data-keyflow-scroll-viewport]') === camera.viewport)
+    .map((node) => { const rect = node.getBoundingClientRect(); return { start: rect.top - top, end: rect.bottom - top }; });
 };
-
-// start and end of every must view element, in pixels from the top of the world
-const must_view_spans = () => {
-  if (!state_viewport.world) return [];
-  const world_top = state_viewport.world.getBoundingClientRect().top;
-  return [...must_views].map((node) => {
-    const rect = node.getBoundingClientRect();
-    return { start: rect.top - world_top, end: rect.bottom - world_top };
-  });
+const page_pixels = (camera: StateViewport) => Math.max(1, camera.viewport_height * min_box.value);
+const max_y = (camera: StateViewport) => camera.viewport ? Math.max(0, camera.viewport.scrollHeight - camera.viewport.clientHeight) : 0;
+const resolve_camera = (value: unknown) => value instanceof StateViewport ? value : active_viewport();
+export const sync_native_scroll = (candidate?: unknown) => {
+  const camera = resolve_camera(candidate);
+  if (!camera.viewport) return;
+  camera.y = camera.viewport.scrollTop;
+  if (camera === state_viewport) void y_pixels.set(camera.y, { duration: 0 });
 };
-
-// one page is the viewport height rounded down to whole min_boxes
-const page_pixels = () => state_viewport.viewport_height * min_box.value;
-
-// Native scrolling is the source of truth in both pointer modes.
-const max_y = () => Math.max(0, state_viewport.world_pixels - state_viewport.viewport_pixels);
-
-export const sync_native_scroll = () => {
-  const viewport = state_viewport.viewport;
-  if (!viewport) return;
-  state_viewport.y = viewport.scrollTop;
-  // Keep the public camera position in sync for existing integrations.
-  void y_pixels.set(viewport.scrollTop, { duration: 0 });
-};
-
-/** Scroll to a pixel position in the document; use instant for screen restoration. */
-export const scroll_to = (y: number, behavior: ScrollBehavior = 'smooth') => {
+export const scroll_to = (y: number, behavior: ScrollBehavior = 'smooth', camera = active_viewport()) => {
   if (!Number.isFinite(y)) return;
-  update_viewport();
-  state_viewport.viewport?.scrollTo({ top: Math.max(0, Math.min(y, max_y())), behavior });
-  sync_native_scroll();
+  update_viewport(camera);
+  camera.viewport?.scrollTo({ top: Math.max(0, Math.min(y, max_y(camera))), behavior });
+  sync_native_scroll(camera);
 };
-
-export const scroll_to_hash = () => {
-  const { viewport, world } = state_viewport;
+export const scroll_to_hash = (candidate?: unknown) => {
+  const camera = resolve_camera(candidate);
+  const { viewport, world } = camera;
   if (!viewport || !world || !window.location.hash) return;
   let id: string;
-  try {
-    id = decodeURIComponent(window.location.hash.slice(1));
-  } catch {
-    return;
-  }
+  try { id = decodeURIComponent(window.location.hash.slice(1)); } catch { return; }
   const target = document.getElementById(id);
-  if (!target || !world.contains(target)) return;
-
-  scroll_to(target.getBoundingClientRect().top - world.getBoundingClientRect().top, 'instant');
+  if (target && world.contains(target)) scroll_to(target.getBoundingClientRect().top - world.getBoundingClientRect().top - camera.inset_top, 'instant', camera);
 };
-
-export const update_viewport = () => {
-  if (state_viewport.viewport && state_viewport.world) {
-    const viewport_rect = state_viewport.viewport.getBoundingClientRect();
-    state_viewport.viewport_pixels = state_viewport.viewport.clientHeight;
-    state_viewport.viewport_width = Math.floor(viewport_rect.width / min_box.value);
-    const viewport_height = Math.max(1, Math.floor(viewport_rect.height / min_box.value)); // in min_box rounded down
-
-    state_viewport.viewport_height = viewport_height;
-
-    state_viewport.world_pixels = state_viewport.world.getBoundingClientRect().height;
-    state_viewport.world_height = Math.ceil(
-      state_viewport.world_pixels / viewport_height / min_box.value
-    );
-    sync_native_scroll();
+const paddings = new WeakMap<HTMLElement, { top: number; bottom: number; left: number; right: number }>();
+export const update_viewport = (candidate?: unknown) => {
+  const camera = resolve_camera(candidate);
+  const { viewport, world } = camera;
+  if (!viewport || !world) return;
+  let base = paddings.get(world);
+  if (!base) {
+    const style = getComputedStyle(world);
+    base = { top: parseFloat(style.paddingTop) || 0, bottom: parseFloat(style.paddingBottom) || 0,
+      left: parseFloat(style.paddingLeft) || 0, right: parseFloat(style.paddingRight) || 0 };
+    paddings.set(world, base);
   }
+  const rect = client_bounds(viewport), usable = usable_viewport(viewport), reservation = usable_viewport(viewport, true);
+  const top = Math.max(0, usable.top - rect.top), bottom = Math.max(0, rect.bottom - usable.bottom);
+  const left = Math.max(0, usable.left - rect.left), right = Math.max(0, rect.right - usable.right);
+  for (const [property, value] of [['paddingTop', base.top + Math.max(0, reservation.top - rect.top)], ['paddingBottom', base.bottom + Math.max(0, rect.bottom - reservation.bottom)],
+    ['paddingLeft', base.left + Math.max(0, reservation.left - rect.left)], ['paddingRight', base.right + Math.max(0, rect.right - reservation.right)]] as const) {
+    const next = `${value}px`;
+    if (world.style[property] !== next) world.style[property] = next;
+  }
+  camera.inset_top = top; camera.inset_bottom = bottom;
+  camera.viewport_pixels = Math.max(0, usable.bottom - usable.top);
+  camera.viewport_width = Math.max(0, Math.floor((usable.right - usable.left) / min_box.value));
+  camera.viewport_height = Math.max(1, Math.floor(camera.viewport_pixels / min_box.value));
+  camera.world_pixels = Math.max(0, world.getBoundingClientRect().height - top - bottom);
+  camera.world_height = Math.ceil(camera.world_pixels / page_pixels(camera));
+  sync_native_scroll(camera);
 };
-
-// goes to whichever is closer: the start of an element cut by the bottom edge, or one full page down.
-// an element is only snapped to if it starts below the top edge, so elements taller than the page still get paged through
-export const page_down = () => {
-  update_viewport(); //this updates before paging down to prevent situation of world dom internal changing between screen resizes
-  const top = state_viewport.y;
-  const bottom = top + page_pixels();
-  if (bottom >= state_viewport.world_pixels) return; // nothing below the viewport
+export const page_down = (candidate?: unknown) => {
+  const camera = resolve_camera(candidate);
+  update_viewport(camera);
+  const top = camera.y, bottom = top + page_pixels(camera);
+  if (camera.y >= max_y(camera)) return;
   let target = bottom;
-  for (const { start, end } of must_view_spans()) {
-    if (start > top && start < bottom && end > bottom) target = Math.min(target, start);
-  }
-  scroll_to(target);
+  for (const { start, end } of must_view_spans(camera)) if (start > top && start < bottom && end > bottom) target = Math.min(target, start);
+  scroll_to(target, 'smooth', camera);
 };
-// mirror of page_down: goes to whichever is closer: putting the end of an element cut by the top edge at the bottom, or one full page up
-export const page_up = () => {
-  update_viewport();
-  const top = state_viewport.y;
-  const bottom = top + page_pixels();
-  let target = top - page_pixels();
-  for (const { start, end } of must_view_spans()) {
-    if (end < bottom && end > top && start < top) target = Math.max(target, end - page_pixels());
-  }
-  scroll_to(target);
+export const page_up = (candidate?: unknown) => {
+  const camera = resolve_camera(candidate);
+  update_viewport(camera);
+  const top = camera.y, bottom = top + page_pixels(camera);
+  let target = top - page_pixels(camera);
+  for (const { start, end } of must_view_spans(camera)) if (end < bottom && end > top && start < top) target = Math.max(target, end - page_pixels(camera));
+  scroll_to(target, 'smooth', camera);
 };
