@@ -1,0 +1,8 @@
+<!-- Slider whose controls use persistent positional shortcuts: assigned by page position, active while offscreen. -->
+<script lang="ts">
+  import Slider from './Slider.svelte';
+  import type { SliderProps } from '../slider.js';
+  let { value = $bindable(0), ...props }: SliderProps = $props();
+</script>
+
+<Slider bind:value orientation="vertical" mode="persistent" {...props} />

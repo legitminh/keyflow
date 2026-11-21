@@ -61,6 +61,22 @@ test('positional multi-key controls start at terminal keydown and custom interac
   await expect(slider(page, 'Custom core')).toHaveAttribute('aria-valuenow', '50.5');
 });
 
+test('persistent sliders keep page-position shortcuts while offscreen; bounded text scrolls past its limit', async ({ page }) => {
+  await page.goto('/sliders');
+  const increase = page.getByRole('button', { name: /Increase Horizontal persistent$/ });
+  const route = (await increase.locator('.pending_route').textContent())!;
+  expect(route.length).toBeGreaterThan(0);
+  // Scroll the control out of view: its shortcut stays registered.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.keyboard.type(route);
+  await expect(slider(page, 'Horizontal persistent')).toHaveAttribute('aria-valuenow', '51');
+  const title = page.locator('.keyflow-bounded-text').first();
+  const metrics = await title.evaluate((node) => ({ scroll: node.scrollWidth, client: node.clientWidth, chars: parseFloat(getComputedStyle(node).maxWidth) / parseFloat(getComputedStyle(node).fontSize) }));
+  expect(metrics.scroll).toBeGreaterThan(metrics.client);
+  await expect(title).toHaveAttribute('tabindex', '0');
+  await expect(title).toHaveAttribute('title', 'a-very-long-file-name-that-scrolls.visual');
+});
+
 test('preset control snippets receive the core controller, snap API writes, and respect disabled gating', async ({ page }) => {
   await page.goto('/sliders');
   const range = slider(page, 'Snippet controls');

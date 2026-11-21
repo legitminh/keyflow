@@ -8,7 +8,8 @@ Run `pnpm demo` and visit `/sliders` to try every preset, custom controls, and t
 <script lang="ts">
   import {
     HorizontalHoverSlider, VerticalHoverSlider,
-    HorizontalPositionalSlider, VerticalPositionalSlider
+    HorizontalPositionalSlider, VerticalPositionalSlider,
+    HorizontalSlider, VerticalSlider
   } from '@legitminh/keyflow';
   let volume = $state(50);
   let balance = $state(0);
@@ -26,6 +27,8 @@ All presets compose `SliderCore` with existing button components. Drag or tap th
 | `VerticalHoverSlider` | `HoverButton` | Down decreases, Up increases |
 | `HorizontalPositionalSlider` | `ButtonPositional` | Automatically assigned while each control is visible |
 | `VerticalPositionalSlider` | `ButtonPositional` | Automatically assigned while each control is visible |
+| `HorizontalSlider` | `Button` | Automatically assigned by page position; stay registered offscreen |
+| `VerticalSlider` | `Button` | Automatically assigned by page position; stay registered offscreen |
 
 Hover controls show their shortcut on mouse hover or keyboard focus. Their static shortcuts remain registered offscreen. Override the hover presets with `decreaseKeys` / `increaseKeys`, accepting the same `Shortcut` format as `StaticButton`:
 

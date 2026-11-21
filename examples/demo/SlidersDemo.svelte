@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import {
     Keyflow, Document, SliderCore, HorizontalHoverSlider, VerticalHoverSlider,
-    HorizontalPositionalSlider, VerticalPositionalSlider, Interactable, InputFrame,
+    HorizontalPositionalSlider, VerticalPositionalSlider, HorizontalSlider, BoundedText, Interactable, InputFrame,
     StaticButton, Button, KeyboardKeyDisplay, create_input_frame, input_frame_manager,
     type SliderController
   } from '../../src/lib/index.js';
@@ -10,6 +10,7 @@
   let horizontal = $state(50);
   let vertical = $state(50);
   let positional = $state(50);
+  let persistent = $state(50);
   let positionalVertical = $state(50);
   let custom = $state(50);
   let snippetValue = $state(0);
@@ -46,6 +47,9 @@
             decreaseKeys={rebound ? 'j' : 'arrowleft'} increaseKeys={rebound ? 'k' : 'arrowright'} />
           <h2>Horizontal positional: {positional}</h2>
           <HorizontalPositionalSlider bind:value={positional} label="Horizontal positional" {disabled} speed={40} />
+          <h2>Horizontal persistent: {persistent}</h2>
+          <HorizontalSlider bind:value={persistent} label="Horizontal persistent" {disabled} speed={40} />
+          <h2>Bounded title: <BoundedText text="a-very-long-file-name-that-scrolls.visual" /></h2>
         </section>
         <section class="columns">
           <div><h2>Vertical hover: {vertical}</h2><VerticalHoverSlider bind:value={vertical} label="Vertical hover" {disabled} speed={40} /></div>

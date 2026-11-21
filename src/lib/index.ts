@@ -15,6 +15,7 @@ export { default as ThemeToggle } from './components/ThemeToggle.svelte';
 export { default as FloodOverlay } from './components/FloodOverlay.svelte';
 export { default as Link } from './components/Link.svelte';
 export { default as LineText } from './components/LineText.svelte';
+export { default as BoundedText } from './components/BoundedText.svelte';
 export { default as Indent } from './components/Indent.svelte';
 export { default as Image } from './components/Image.svelte';
 export { default as Document } from './components/scroll/vertical/Document.svelte';
@@ -93,6 +94,8 @@ export { default as HorizontalHoverSlider } from './components/HorizontalHoverSl
 export { default as VerticalHoverSlider } from './components/VerticalHoverSlider.svelte';
 export { default as HorizontalPositionalSlider } from './components/HorizontalPositionalSlider.svelte';
 export { default as VerticalPositionalSlider } from './components/VerticalPositionalSlider.svelte';
+export { default as HorizontalSlider } from './components/HorizontalSlider.svelte';
+export { default as VerticalSlider } from './components/VerticalSlider.svelte';
 export { normalize_slider_value, type SliderController, type SliderDirection, type SliderCoreProps, type SliderProps, type HoverSliderProps } from './slider.js';
 
 export type { ScrollKeys } from './scroll.js';

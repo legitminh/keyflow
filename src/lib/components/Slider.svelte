@@ -1,13 +1,14 @@
-<!-- Internal composition shared by the four public presets. -->
+<!-- Internal composition shared by the six public presets. -->
 <script lang="ts">
   import SliderCore from './SliderCore.svelte';
   import HoverButton from './HoverButton.svelte';
   import ButtonPositional from './ButtonPositional.svelte';
+  import Button from './Button.svelte';
   import type { HoverSliderProps, SliderController } from '../slider.js';
 
   let { value = $bindable(0), orientation = 'horizontal', mode = 'hover', controls,
     decreaseKeys, increaseKeys, decreaseLabel, increaseLabel, label = 'Slider', disabled = false,
-    ...props }: HoverSliderProps & { orientation?: 'horizontal' | 'vertical'; mode?: 'hover' | 'positional' } = $props();
+    ...props }: HoverSliderProps & { orientation?: 'horizontal' | 'vertical'; mode?: 'hover' | 'positional' | 'persistent' } = $props();
   let core = $state<SliderController>();
   const vertical = $derived(orientation === 'vertical');
 </script>
@@ -19,6 +20,11 @@
       {disabled} on_pressed_down={() => core?.start(side)} on_pressed_up={() => core?.stop(side)}>
       <span class="control-label">{text}</span><span aria-hidden="true">{side === -1 ? (vertical ? '↓' : '←') : (vertical ? '↑' : '→')}</span>
     </HoverButton>
+  {:else if mode === 'persistent'}
+    <!-- Persistent positional: shortcuts follow page position and stay registered offscreen. -->
+    <Button {disabled} on_pressed_down={() => core?.start(side)} on_pressed_up={() => core?.stop(side)}>
+      <span class="control-label">{text}</span><span aria-hidden="true">{side === -1 ? (vertical ? '↓' : '←') : (vertical ? '↑' : '→')}</span>
+    </Button>
   {:else}
     <ButtonPositional {disabled} on_pressed_down={() => core?.start(side)} on_pressed_up={() => core?.stop(side)}>
       <span class="control-label">{text}</span><span aria-hidden="true">{side === -1 ? (vertical ? '↓' : '←') : (vertical ? '↑' : '→')}</span>

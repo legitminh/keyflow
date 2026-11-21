@@ -151,7 +151,7 @@ Use `children(context)` to append custom controls, `bind:open` for state, or `bi
 
 ### Sliders and key colors
 
-`SliderCore` provides a draggable dot and line with a bindable value and `set`, `shift`, `start`, and `stop` methods. `HorizontalHoverSlider`, `VerticalHoverSlider`, `HorizontalPositionalSlider`, and `VerticalPositionalSlider` compose it with existing interactables. Hold a control or its shortcut to move continuously; release to stop. Hover presets default to arrow keys and accept custom `decreaseKeys` / `increaseKeys`. The core and presets support mouse, pen, touch, fractional steps, frame gating, and custom controls.
+`SliderCore` provides a draggable dot and line with a bindable value and `set`, `shift`, `start`, and `stop` methods. `HorizontalHoverSlider`, `VerticalHoverSlider`, `HorizontalPositionalSlider`, `VerticalPositionalSlider`, `HorizontalSlider`, and `VerticalSlider` compose it with existing interactables. `HorizontalSlider` / `VerticalSlider` use persistent positional `Button` controls: shortcuts follow page position and remain registered while offscreen. Hold a control or its shortcut to move continuously; release to stop. Hover presets default to arrow keys and accept custom `decreaseKeys` / `increaseKeys`. The core and presets support mouse, pen, touch, fractional steps, frame gating, and custom controls.
 
 ```svelte
 <HorizontalHoverSlider bind:value={volume} label="Volume" min={0} max={100} step={1} />
@@ -160,6 +160,15 @@ Use `children(context)` to append custom controls, `bind:open` for state, or `bi
 The public `f(b, h, i)` / `distribute_color()` function generates unique ordered color buckets with the requested adjacent gap. Buttons and virtual keys share `f(256, 32, key_index)` through `key_color_hue()`; multi-key routes use sequential indices. Out-of-range indices have no highlight color. Read the [slider and color API guide](docs/sliders-and-colors.md) for setup, custom composition, named-key slots, and distribution guarantees, or visit `/sliders`.
 
 ### Hover buttons
+
+### Bounded text
+
+`BoundedText` shows one line of text, or custom `children`, at most `limit` units wide (16 characters by default). Longer content scrolls horizontally with native scrolling, and the box becomes focusable so keyboard users can reach it. Use it for titles in dense toolbars:
+
+```svelte
+<BoundedText text={fileName} />
+<BoundedText limit={12} unit="em" label="Path"><code>{path}</code></BoundedText>
+```
 
 `HoverButton` and `HoverButtonPositional` render custom content with the assigned key path and entered/pending progress overlaid at the top right on mouse hover or keyboard focus. The overlay takes no layout space. Their shortcuts work even when the overlay is hidden, and they share regular buttons' activation feedback and InputFrame gating. The path is excluded from the accessible name, so give the content a descriptive action label.
 
