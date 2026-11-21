@@ -13,7 +13,7 @@ test('system preference persists, follows live OS changes, and cycles back to ex
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect.poll(() => background(page)).toBe('rgb(0, 0, 0)');
   await expect.poll(() => page.evaluate(() => document.documentElement.style.colorScheme)).toBe('dark');
-  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('keyflow:theme_id'))).toBe('system');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('keyflow:theme_id'))).toBe('system');
   await page.reload();
   await expect(themeButton(page, 'system')).toBeVisible();
   await expect.poll(() => background(page)).toBe('rgb(0, 0, 0)');
@@ -53,7 +53,9 @@ test('initial system mode resolves custom palettes and stops tracking on unmount
 test('system mode works without preference storage', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await page.addInitScript(() => {
-    Object.defineProperty(window, 'sessionStorage', { get() { throw new Error('Storage blocked'); } });
+    for (const name of ['localStorage', 'sessionStorage']) {
+      Object.defineProperty(window, name, { get() { throw new Error('Storage blocked'); } });
+    }
   });
   await page.goto('/themes');
   await expect(themeButton(page, 'system')).toBeVisible();
@@ -64,8 +66,21 @@ test('system mode works without preference storage', async ({ page }) => {
 });
 
 test('invalid saved IDs fall back to the existing initial theme', async ({ page }) => {
-  await page.addInitScript(() => sessionStorage.setItem('keyflow:theme_id', '999'));
+  await page.addInitScript(() => localStorage.setItem('keyflow:theme_id', '999'));
   await page.goto('/flow');
   await expect(themeButton(page, 'dark')).toBeVisible();
   await expect.poll(() => background(page)).toBe('rgb(255, 255, 255)');
+});
+
+test('preferences survive closing the window, and earlier session values migrate', async ({ page, context }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('keyflow:theme_id')) sessionStorage.setItem('keyflow:theme_id', '1');
+  });
+  await page.goto('/flow');
+  await expect(themeButton(page, 'light')).toBeVisible(); // migrated from sessionStorage
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('keyflow:theme_id'))).toBe('1');
+  await page.close();
+  const next = await context.newPage(); // a new window starts with empty sessionStorage
+  await next.goto('/flow');
+  await expect(themeButton(next, 'light')).toBeVisible();
 });
