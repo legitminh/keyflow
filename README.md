@@ -194,7 +194,7 @@ Shortcut sequences grow as the number of registered controls increases; Escape c
 
 ### Keypath visibility
 
-Keypaths are the shortcut labels displayed in front of `Button`, `ButtonPositional`, `HoverButton` and `StaticButton` content. Hiding them renders those controls as plain buttons, without labels, shortcut colors or flood effects. Shortcuts stay registered and keep working when typed; only the display changes.
+Keypaths are the shortcut labels displayed in front of `Button`, `ButtonPositional`, `HoverButton` and `StaticButton` content. Hiding them removes only the labels: shortcut colors, press/activation highlights and flood effects remain as indicators. Shortcuts stay registered and keep working when typed.
 
 **Recommended setup for implementers:**
 

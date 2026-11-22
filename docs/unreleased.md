@@ -8,7 +8,7 @@ Notes for the next minor release (`pnpm release minor --notes-file docs/unreleas
 - `HorizontalSlider` / `VerticalSlider`: slider presets whose step controls are persistent positional `Button`s. Their shortcuts follow page position and stay registered while offscreen.
 - `TextBox singleLine`: a one-line field one min-box high. Enter (physical or virtual) commits, and pasted line breaks become spaces.
 - `NumberBox`: a numeric single-line TextBox. On commit it parses, clamps to `min`/`max` and snaps to `step`. Unparsable text reverts. ArrowUp/ArrowDown nudge the value while editing.
-- `KeypathToggle`: switches buttons between showing their keypath (shortcut labels) in front and plain display. Shortcuts keep working while hidden.
+- `KeypathToggle`: switches buttons between showing their keypath (shortcut labels) in front and hiding it. Shortcut colors and highlights remain, and shortcuts keep working while hidden.
 
 ## New state and options
 

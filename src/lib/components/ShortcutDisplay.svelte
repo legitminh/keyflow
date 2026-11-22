@@ -2,19 +2,20 @@
   import type { Snippet } from 'svelte';
   import { flood } from '../actions/flood.js';
   import { keypath_visibility } from '../stores/keypath.svelte.js';
-  let { entered, pending, complete, hue: shortcut_hue, activated = false, floods = false, overlay = false, children }: {
+  let { entered, pending, complete, hue, activated = false, floods = false, overlay = false, children }: {
     entered: string; pending: string; complete: boolean; hue?: number;
     activated?: boolean; floods?: boolean; overlay?: boolean; children?: Snippet;
   } = $props();
-  // Hidden keypaths render as plain buttons: no labels, shortcut colors or flood.
+  // Hidden keypaths remove only the labels; shortcut colors and highlights remain as indicators.
   let visible = $derived(keypath_visibility.visible);
-  let hue = $derived(visible ? shortcut_hue : undefined);
+  let flood_color = $derived(`hsla(${hue ?? 0}, 100%, 50%, 0.75)`);
 </script>
 
-<div class="button" class:overlay class:colored={hue !== undefined} class:highlighted={complete || activated} style:--shortcut-hue={hue}>
+<div class="button" class:overlay class:colored={hue !== undefined} class:highlighted={complete || activated} style:--shortcut-hue={hue}
+  use:flood={{ enabled: !visible && floods && hue !== undefined, active: complete, color: flood_color }}>
   {#if visible}
   <div class="route" aria-hidden={overlay ? true : undefined}
-    use:flood={{ enabled: floods && hue !== undefined, active: complete, color: `hsla(${hue ?? 0}, 100%, 50%, 0.75)` }}>
+    use:flood={{ enabled: floods && hue !== undefined, active: complete, color: flood_color }}>
     {#if entered}
       <div class="enter_route" style:background-color={hue === undefined ? undefined : `hsla(${hue}, 100%, 50%, 0.75)`}>{entered}</div>
     {/if}

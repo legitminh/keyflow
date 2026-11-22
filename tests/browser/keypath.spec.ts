@@ -10,7 +10,8 @@ test('keypath toggle hides labels, keeps shortcuts working, and persists', async
   await page.getByRole('button', { name: /keypaths shown$/ }).click();
   await expect(page.getByRole('button', { name: /keypaths hidden$/ })).toBeVisible();
   await expect(page.locator('.route')).toHaveCount(0);
-  await expect(counter.locator('.colored')).toHaveCount(0);
+  // Shortcut colors stay as an indicator without the labels.
+  await expect(counter.locator('.colored')).toHaveCount(1);
   await expect.poll(() => page.evaluate(() => localStorage.getItem('keyflow:keypath_visible'))).toBe('false');
 
   await page.keyboard.type(shortcut);
