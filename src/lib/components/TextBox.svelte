@@ -13,12 +13,14 @@
 
   let { value = $bindable(''), enterTrigger, exitTrigger = 'escape', priority = 0, showEntry = true,
     label = 'Text input', placeholder = 'Click to edit', rows = 4, disabled = false,
-    wrap = 'soft', class: className = '', onenter, onexit, oninput, ...attributes }: {
+    wrap = 'soft', singleLine = false, class: className = '', onenter, onexit, oninput, ...attributes }: {
     value?: string; enterTrigger?: Shortcut | null; exitTrigger?: Shortcut; priority?: number;
     /** Hide the built-in entry button when supplying your own opener. */
     showEntry?: boolean;
     label?: string; placeholder?: string; rows?: number; disabled?: boolean;
     wrap?: 'soft' | 'hard' | 'off'; class?: string;
+    /** One line of text: Enter (physical or virtual) finishes editing and pasted line breaks become spaces. */
+    singleLine?: boolean;
     onenter?: (frame: InputFrameController) => void; onexit?: (value: string) => void;
     oninput?: (event: Event) => void;
   } & Omit<HTMLTextareaAttributes, 'value' | 'children' | 'oninput' | 'class' | 'wrap'> = $props();
@@ -97,6 +99,11 @@
     const unregister = set_input_frame_handler(frame, (type, input) => {
       const event = { key: input.key, code: input.code ?? '', repeat: input.repeat ?? false };
       if (type === 'keydown' ? frame.static_input.keydown(event) : frame.static_input.keyup(event)) return true;
+      if (singleLine && input.key === 'Enter') {
+        // Enter commits a single-line value instead of inserting a line break.
+        if (type === 'keydown') void exit();
+        return true;
+      }
       if (input.source !== 'virtual') return editor?.physicalKey(type, input) ?? false;
       if (type === 'keyup') editor?.virtualKey(input);
       return true;
@@ -108,7 +115,7 @@
   onDestroy(() => frame.dispose());
 </script>
 
-<div class="keyflow-textbox {className}">
+<div class="keyflow-textbox {className}" class:single-line={singleLine}>
   {#if showEntry && !editing}
     <button type="button" bind:this={button} class="text-entry" aria-label={label}
       disabled={disabled || $active_input_frame !== parent}
@@ -120,9 +127,9 @@
     </button>
   {/if}
   <section hidden={!editing} aria-label={`${label} editor`}>
-    <textarea bind:this={textarea} bind:value {...attributes} {rows} {wrap} {placeholder}
+    <textarea bind:this={textarea} bind:value {...attributes} rows={singleLine ? 1 : rows} wrap={singleLine ? 'off' : wrap} {placeholder}
       disabled={disabled || !active} aria-label={label} aria-describedby={descriptionId}
-      oninput={(event) => oninput?.(event)}></textarea>
+      oninput={(event) => { if (singleLine && /[\r\n]/.test(value)) value = value.replace(/\r?\n|\r/g, ' '); oninput?.(event); }}></textarea>
     <p id={descriptionId} class="editor-status" role="status">{`Exit with ${exitLabel}`}</p>
   </section>
 </div>
@@ -134,4 +141,11 @@
   textarea { display: block; width: 100%; box-sizing: border-box; min-height: 5rem; padding: .5rem;
     border: 1px solid currentColor; border-radius: .25rem; background: var(--background, #fff); color: var(--primary, #111); font: inherit; line-height: 1.5; }
   .editor-status { font-size: .85em; margin: .25rem 0; line-height: 1.4; }
+  /* Single-line boxes sit inline at one min-box of height, like buttons. */
+  .single-line { display: inline-block; margin-block: 0; vertical-align: middle; }
+  .single-line .text-entry { display: inline-block; width: auto; min-width: 4ch; padding: 0 .4ch; line-height: var(--min-box); white-space: nowrap; }
+  .single-line .preview { white-space: pre; }
+  .single-line textarea { display: inline-block; width: var(--textbox-width, 16ch); min-height: 0; height: var(--min-box); padding: 0 .4ch;
+    line-height: var(--min-box); resize: none; overflow: hidden; white-space: pre; }
+  .single-line .editor-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); margin: 0; }
 </style>

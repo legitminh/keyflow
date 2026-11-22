@@ -2,12 +2,13 @@
   import { onDestroy } from 'svelte';
   import {
     Keyflow, Document, Button, ButtonPositional, Interactable, StaticButton,
-    HoverButton, HoverButtonPositional, TextBox, InputFrame,
+    HoverButton, HoverButtonPositional, TextBox, NumberBox, InputFrame,
     create_input_frame, input_frame_manager, type TextBoxController, type Shortcut
   } from '../../src/lib/index.js';
   import '../../src/lib/styles.css';
 
   let textbox = $state<TextBoxController>();
+  let title = $state('Ink'), amount = $state(25);
   let value = $state('');
   let entryMode = $state('external');
   let exitTrigger = $state<Shortcut>('escape');
@@ -67,6 +68,11 @@
         <TextBox bind:this={textbox} bind:value {enterTrigger} {exitTrigger} {disabled} {showEntry}
           label="Externally opened editor" onenter={() => entries++} onexit={() => exits++} />
       {/if}
+      <div class="controls" role="group" aria-label="Single-line fields">
+        <TextBox bind:value={title} singleLine label="Layer title" />
+        <NumberBox bind:value={amount} min={0} max={100} step={0.5} label="Amount" />
+        <span aria-label="Field values">{title}|{amount}</span>
+      </div>
       <p aria-label="Hover activations">Hover actions: {hoverCount}</p>
       <div class="controls" role="group" aria-label="Hover actions">
         <HoverButton priority={2} on_close={() => hoverCount++}>Hover action</HoverButton>

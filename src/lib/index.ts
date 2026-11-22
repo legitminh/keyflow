@@ -79,6 +79,7 @@ export {
   type FlickDirection, type FlickTranslation, type FlickBindings, type FlickBounds
 } from './flick.js';
 export { default as TextBox } from './components/TextBox.svelte';
+export { default as NumberBox } from './components/NumberBox.svelte';
 export type { TextBoxController } from './textbox.js';
 export { set_input_frame_handler, type FrameInputHandler } from './input-events.js';
 

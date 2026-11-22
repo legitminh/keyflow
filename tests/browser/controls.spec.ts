@@ -169,3 +169,29 @@ test('hover variants retain persistent vs visible-only registration', async ({ p
   await expect(positional.locator('.pending_route')).toHaveCount(0);
   await expect(persistent.locator('.pending_route')).not.toBeEmpty();
 });
+
+test('single-line TextBox commits on Enter; NumberBox clamps, snaps, nudges and reverts invalid text', async ({ page }) => {
+  await page.goto('/controls');
+  const values = page.getByLabel('Field values');
+  await page.getByRole('button', { name: 'Layer title', exact: true }).click();
+  const title = page.getByRole('textbox', { name: 'Layer title', exact: true });
+  await expect(title).toBeFocused();
+  await title.press('ControlOrMeta+a'); await page.keyboard.type('Sketch');
+  await page.keyboard.press('Enter');
+  await expect(title).toBeHidden();
+  await expect(values).toHaveText('Sketch|25');
+  await page.getByRole('button', { name: 'Amount', exact: true }).click();
+  const amount = page.getByRole('textbox', { name: 'Amount', exact: true });
+  await amount.press('ControlOrMeta+a'); await page.keyboard.type('250');
+  await page.keyboard.press('Enter');
+  await expect(values).toHaveText('Sketch|100');
+  await page.getByRole('button', { name: 'Amount', exact: true }).click();
+  await amount.press('ControlOrMeta+a'); await page.keyboard.type('12.3');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Enter');
+  await expect(values).toHaveText('Sketch|13');
+  await page.getByRole('button', { name: 'Amount', exact: true }).click();
+  await amount.press('ControlOrMeta+a'); await page.keyboard.type('abc');
+  await page.keyboard.press('Escape');
+  await expect(values).toHaveText('Sketch|13');
+});

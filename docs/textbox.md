@@ -121,3 +121,14 @@ Run `pnpm demo`. On `/` (also `/stack`), click **Keyboard text editor** or input
 Visit `/controls` for client-supplied openers, hover overlays, and live entry/exit binding selectors. It also demonstrates API exit, disabled editors, and a child frame that temporarily masks editing.
 
 The flick-alpha Escape key replaces the former semicolon slot: tap Escape exits, left flick deletes backward, right flick inserts Tab, up flick types `~`, and down flick types a backtick. Space flicks move the caret in the corresponding direction. For a virtual Enter key, choose a layout such as 60%; physical Enter works normally in every layout.
+
+## Single-line text and numbers
+
+`singleLine` turns a TextBox into a one-line field that sits inline at one min-box of height. Enter (physical or virtual) finishes editing, and pasted line breaks become spaces. `NumberBox` builds on it: the draft is parsed when editing ends, clamped to `min`/`max`, snapped to `step`, and written to `value`. Text that doesn't parse reverts. While editing, ArrowUp/ArrowDown nudge by one step.
+
+```svelte
+<TextBox bind:value={name} singleLine label="Layer name" />
+<NumberBox bind:value={width} min={1} max={16384} step={1} label="Width" onchange={(v) => resize(v)} />
+```
+
+Both keep TextBox's entry and exit triggers, automatic shortcuts and `bind:this` controller (`enter()`, `exit()`). Set `--textbox-width` (or NumberBox's `width`) to size the editing field.

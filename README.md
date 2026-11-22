@@ -161,6 +161,10 @@ The public `f(b, h, i)` / `distribute_color()` function generates unique ordered
 
 ### Hover buttons
 
+### Single-line text and numbers
+
+`TextBox singleLine` is a keyboard-entered one-line field: Enter commits. `NumberBox` adds parsing, clamping and step snapping on commit, plus ArrowUp/ArrowDown nudges while editing. See [TextBox](docs/textbox.md#single-line-text-and-numbers).
+
 ### Bounded text
 
 `BoundedText` shows one line of text, or custom `children`, at most `limit` units wide (16 characters by default). Longer content scrolls horizontally with native scrolling, and the box becomes focusable so keyboard users can reach it. Use it for titles in dense toolbars:
