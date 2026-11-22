@@ -1,5 +1,6 @@
 import { min_box } from './stores/layout.svelte.js';
 import { lockstep_scrolling } from './stores/scroll.svelte.js';
+import { keypath_visibility, detect_keypath_visible } from './stores/keypath.svelte.js';
 import { themes, set_theme_id, initialize_theme, type Theme, type ThemeId } from './stores/theme.svelte.js';
 import { readPreference, setStoragePrefix } from './storage.js';
 import { dispatch_key_input, reset_input, has_input_frame_handler } from './input-events.js';
@@ -18,6 +19,11 @@ export interface KeyflowOptions {
   /** Auto-detected by default; also controls the portable Ctrl/Mod mapping and labels. */
   platform?: ShortcutPlatform | 'auto';
   lockstep?: boolean;
+  /**
+   * Initial keypath visibility when no preference is saved. `'auto'` shows keypaths on
+   * computers and hides them on touch-first devices. Defaults to true.
+   */
+  keypathVisible?: boolean | 'auto';
 }
 
 /** Initialize one full-page Keyflow application. Returns listener cleanup. */
@@ -41,6 +47,11 @@ export function initializeKeyflow(options: KeyflowOptions = {}) {
   lockstep_scrolling.set(
     savedScroll === null ? (options.lockstep ?? true) : savedScroll !== 'false'
   );
+  const savedKeypath = readPreference('keypath_visible');
+  const initialKeypath = options.keypathVisible ?? true;
+  keypath_visibility.visible = savedKeypath === null
+    ? (initialKeypath === 'auto' ? detect_keypath_visible() : initialKeypath)
+    : savedKeypath !== 'false';
 
   const isEditing = (event: KeyboardEvent) =>
     event

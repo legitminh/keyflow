@@ -1,13 +1,18 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { flood } from '../actions/flood.js';
-  let { entered, pending, complete, hue, activated = false, floods = false, overlay = false, children }: {
+  import { keypath_visibility } from '../stores/keypath.svelte.js';
+  let { entered, pending, complete, hue: shortcut_hue, activated = false, floods = false, overlay = false, children }: {
     entered: string; pending: string; complete: boolean; hue?: number;
     activated?: boolean; floods?: boolean; overlay?: boolean; children?: Snippet;
   } = $props();
+  // Hidden keypaths render as plain buttons: no labels, shortcut colors or flood.
+  let visible = $derived(keypath_visibility.visible);
+  let hue = $derived(visible ? shortcut_hue : undefined);
 </script>
 
 <div class="button" class:overlay class:colored={hue !== undefined} class:highlighted={complete || activated} style:--shortcut-hue={hue}>
+  {#if visible}
   <div class="route" aria-hidden={overlay ? true : undefined}
     use:flood={{ enabled: floods && hue !== undefined, active: complete, color: `hsla(${hue ?? 0}, 100%, 50%, 0.75)` }}>
     {#if entered}
@@ -17,6 +22,7 @@
       <div class="pending_route">{pending}</div>
     {/if}
   </div>
+  {/if}
   {#if children}
     <div class="content">
       {@render children()}

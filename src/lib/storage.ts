@@ -5,7 +5,7 @@ export function setStoragePrefix(value: string) {
 }
 
 /**
- * Preferences (theme, grid size, scrolling mode) persist across browser and installed-PWA
+ * Preferences (theme, grid size, scrolling mode, keypath visibility) persist across browser and installed-PWA
  * sessions in localStorage. Values saved by earlier versions in sessionStorage are read
  * once and moved to localStorage.
  */

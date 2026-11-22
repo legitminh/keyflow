@@ -71,6 +71,7 @@ Commit that archive and the consumer's lockfile so a clean checkout needs neithe
     LineText,
     ButtonPositional,
     ThemeToggle,
+    KeypathToggle,
     Link
   } from '@legitminh/keyflow';
   import '@legitminh/keyflow/styles.css';
@@ -78,13 +79,14 @@ Commit that archive and the consumer's lockfile so a clean checkout needs neithe
   let count = $state(0);
 </script>
 
-<Keyflow>
+<Keyflow options={{ keypathVisible: 'auto' }}>
   <Document>
     <LineText><h1>My project</h1></LineText>
     <LineText>
       <ButtonPositional on_close={() => count++}>count: {count}</ButtonPositional>
     </LineText>
     <LineText><ThemeToggle /></LineText>
+    <LineText><KeypathToggle /></LineText>
     <LineText><Link href="/about">about</Link></LineText>
   </Document>
 </Keyflow>
@@ -190,6 +192,34 @@ The public `f(b, h, i)` / `distribute_color()` function generates unique ordered
 
 Shortcut sequences grow as the number of registered controls increases; Escape clears partial input. Typing in inputs, textareas, selects, or editable content does not trigger shortcuts. Unregistered modifier shortcuts remain available to the browser.
 
+### Keypath visibility
+
+Keypaths are the shortcut labels displayed in front of `Button`, `ButtonPositional`, `HoverButton` and `StaticButton` content. Hiding them renders those controls as plain buttons, without labels, shortcut colors or flood effects. Shortcuts stay registered and keep working when typed; only the display changes.
+
+**Recommended setup for implementers:**
+
+- Pass `keypathVisible: 'auto'` in the `Keyflow` options. Keypaths then default to **shown on computers**, whose users care about keyboard navigation, and **hidden on iPads, phones and other touch-first devices**, where labels are noise. Detection uses the `(hover: hover) and (pointer: fine)` media query; `detect_keypath_visible()` exposes the same check.
+- Always expose `KeypathToggle` (for example next to `ThemeToggle` in a settings area), so computer users who prefer not to navigate by keyboard can hide keypaths, and tablet users with a hardware keyboard can show them.
+
+```svelte
+<Keyflow options={{ keypathVisible: 'auto' }}>
+  <Document>
+    <LineText><KeypathToggle /></LineText>
+    <!-- Optional custom labels -->
+    <LineText><KeypathToggle shown_label="hide shortcuts" hidden_label="show shortcuts" /></LineText>
+  </Document>
+</Keyflow>
+```
+
+`keypathVisible` also accepts `true` (the default, preserving earlier behavior) or `false`. It only sets the initial state: once a user toggles, their choice persists in `localStorage` like the other preferences and takes precedence. The automatic default is not saved, so it re-evaluates per device until the user chooses. For a custom control, read and update the reactive state:
+
+```ts
+import { keypath_visibility } from '@legitminh/keyflow';
+keypath_visibility.visible; // current state
+keypath_visibility.set(false);
+keypath_visibility.toggle();
+```
+
 ## Static shortcuts
 
 `StaticInteractable` fixes an exact input sequence to custom clickable content. `StaticButton` adds the same entered/pending shortcut display used by automatic buttons, with optional `flood` animation. Both remain registered offscreen until unmounted.
@@ -282,6 +312,7 @@ Pass initial options to `Keyflow`. They are read on mount; saved session prefere
     minBox: 40,
     themeId: 0,
     lockstep: true,
+    keypathVisible: 'auto',
     keys: ['a', 's', 'd', 'f'],
     themes: [
       {
@@ -350,14 +381,15 @@ Changing the pool clears partial keyboard input and recalculates all displayed s
 
 The original site's `dark` and `light` toggle labels describe the ink color and are preserved; supply named themes to change them. `ThemeToggle` cycles all configured palettes, then `system`. System mode follows the operating system's light or dark appearance immediately and when it changes, and keeps the `system` preference across reloads. Set `themeId: 'system'` in the initial options or call `set_theme_id('system')` to select it. Existing numeric IDs and the default initial theme (`0`) are unchanged.
 
-For custom palettes, add `colorScheme: 'light'` or `colorScheme: 'dark'` to each `Theme` to choose which palettes system mode uses and style native browser controls accordingly. Without these fields, system mode uses the first palette for light appearance and the second for dark (or the first when only one exists). `get_current_theme()` returns the resolved palette; `state_theme.theme_id` retains `'system'` while following the OS. Grid size is measured in pixels. Theme, grid size and scrolling mode persist in `localStorage` under the configured `storagePrefix`, so they survive closing the browser or an installed PWA; values saved in `sessionStorage` by earlier versions are migrated on first read. Storage failures fall back to in-memory preferences.
+For custom palettes, add `colorScheme: 'light'` or `colorScheme: 'dark'` to each `Theme` to choose which palettes system mode uses and style native browser controls accordingly. Without these fields, system mode uses the first palette for light appearance and the second for dark (or the first when only one exists). `get_current_theme()` returns the resolved palette; `state_theme.theme_id` retains `'system'` while following the OS. Grid size is measured in pixels. Theme, grid size, scrolling mode and keypath visibility persist in `localStorage` under the configured `storagePrefix`, so they survive closing the browser or an installed PWA; values saved in `sessionStorage` by earlier versions are migrated on first read. Storage failures fall back to in-memory preferences.
 
 Use the exported reactive state for settings controls:
 
 ```ts
-import { min_box, lockstep_scrolling, set_theme_id } from '@legitminh/keyflow';
+import { min_box, lockstep_scrolling, keypath_visibility, set_theme_id } from '@legitminh/keyflow';
 min_box.set(48);
 lockstep_scrolling.set(false);
+keypath_visibility.set(false);
 set_theme_id(0);
 set_theme_id('system');
 ```
@@ -386,7 +418,7 @@ pnpm exec playwright install chromium
 pnpm test:browser
 ```
 
-Browser tests cover flick directions/cancellation/real touch dragging, half-screen docking, frame masking/restoration, virtual keyboard layouts and mouse/touch activation, custom key adapters, shortcut activation, form input, saved preferences, paging, anchor navigation, and native scrolling. To use an existing Chrome installation, set `CHROME_PATH` when running `pnpm test:browser`.
+Browser tests cover flick directions/cancellation/real touch dragging, half-screen docking, frame masking/restoration, virtual keyboard layouts and mouse/touch activation, custom key adapters, shortcut activation, form input, saved preferences, keypath visibility, paging, anchor navigation, and native scrolling. To use an existing Chrome installation, set `CHROME_PATH` when running `pnpm test:browser`.
 
 For a published release, commit completed features and run `pnpm release` (patch) or `pnpm release minor`. The script validates, bumps, packs, pushes, waits for CI, publishes and verifies the GitHub Release. `--dry-run` previews the plan and `--resume` retries an interrupted release commit without bumping again. See [PUBLISH.md](PUBLISH.md) for options and prerequisites.
 

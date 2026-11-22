@@ -12,6 +12,8 @@ export { default as StaticButtonDisplay } from './components/StaticButtonDisplay
 export { key_symbols, format_shortcut, detect_shortcut_platform, type Shortcut, type ShortcutPlatform } from './shortcuts.js';
 export { create_static_token, type StaticInputToken } from './stores/static-input.js';
 export { default as ThemeToggle } from './components/ThemeToggle.svelte';
+export { default as KeypathToggle } from './components/KeypathToggle.svelte';
+export { keypath_visibility, detect_keypath_visible } from './stores/keypath.svelte.js';
 export { default as FloodOverlay } from './components/FloodOverlay.svelte';
 export { default as Link } from './components/Link.svelte';
 export { default as LineText } from './components/LineText.svelte';

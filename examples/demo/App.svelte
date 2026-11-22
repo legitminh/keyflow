@@ -9,6 +9,7 @@
     Button,
     Link,
     ThemeToggle,
+    KeypathToggle,
     min_box,
     lockstep_scrolling
   } from '../../src/lib/index.js';
@@ -26,13 +27,14 @@
     );
 </script>
 
-<Keyflow>
+<Keyflow options={{ keypathVisible: fixture.has('keypath-auto') ? 'auto' : true }}>
   <Document {scrollKeys}>
     <LineText><h1>keyflow</h1></LineText>
     <LineText>Use the key labels, click a control, or swipe to move by a page.</LineText>
     <LineText><ButtonPositional on_close={() => count++}>count: {count}</ButtonPositional></LineText
     >
     <LineText><ThemeToggle /></LineText>
+    <LineText><KeypathToggle /></LineText>
     <LineText
       ><ButtonPositional on_close={() => min_box.set(min_box.value * 1.25)}
         >zoom in</ButtonPositional
