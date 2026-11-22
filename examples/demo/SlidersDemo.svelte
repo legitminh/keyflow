@@ -47,9 +47,6 @@
             decreaseKeys={rebound ? 'j' : 'arrowleft'} increaseKeys={rebound ? 'k' : 'arrowright'} />
           <h2>Horizontal positional: {positional}</h2>
           <HorizontalPositionalSlider bind:value={positional} label="Horizontal positional" {disabled} speed={40} />
-          <h2>Horizontal persistent: {persistent}</h2>
-          <HorizontalSlider bind:value={persistent} label="Horizontal persistent" {disabled} speed={40} />
-          <h2>Bounded title: <BoundedText text="a-very-long-file-name-that-scrolls.visual" /></h2>
         </section>
         <section class="columns">
           <div><h2>Vertical hover: {vertical}</h2><VerticalHoverSlider bind:value={vertical} label="Vertical hover" {disabled} speed={40} /></div>
@@ -72,6 +69,12 @@
               <button type="button" onclick={() => slider.set(10)}>Set snippet maximum</button>
             {/snippet}
           </HorizontalPositionalSlider>
+        </section>
+        <!-- Below the positional sliders so their visibility-based shortcuts stay onscreen. -->
+        <section>
+          <h2>Horizontal persistent: {persistent}</h2>
+          <HorizontalSlider bind:value={persistent} label="Horizontal persistent" {disabled} speed={40} />
+          <h2>Bounded title: <BoundedText text="a-very-long-file-name-that-scrolls.visual" /></h2>
         </section>
       {/if}
       {#if showColors}<section class="colors">
