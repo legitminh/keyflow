@@ -70,7 +70,7 @@
       {/if}
       <div class="controls" role="group" aria-label="Single-line fields">
         <TextBox bind:value={title} singleLine label="Layer title" />
-        <NumberBox bind:value={amount} min={0} max={100} step={0.5} label="Amount" />
+        <NumberBox bind:value={amount} min={0} max={100} step={0.5} label="Quantity" />
         <span aria-label="Field values">{title}|{amount}</span>
       </div>
       <p aria-label="Hover activations">Hover actions: {hoverCount}</p>
