@@ -97,17 +97,21 @@ export const update_viewport = (candidate?: unknown) => {
 export const page_down = (candidate?: unknown) => {
   const camera = resolve_camera(candidate);
   update_viewport(camera);
-  const top = camera.y, bottom = top + page_pixels(camera);
+  const page = page_pixels(camera), top = camera.y, bottom = top + page;
   if (camera.y >= max_y(camera)) return;
   let target = bottom;
-  for (const { start, end } of must_view_spans(camera)) if (start > top && start < bottom && end > bottom) target = Math.min(target, start);
+  // A must_view block cut off by the bottom edge is aligned to the top edge instead of paging past it,
+  // but only when the hidden part is shorter than a page; taller blocks page normally. Requiring
+  // start > top keeps the alignment moving in the requested direction.
+  for (const { start, end } of must_view_spans(camera)) if (start > top && start < bottom && end > bottom && end - bottom < page) target = Math.min(target, start);
   scroll_to(target, 'smooth', camera);
 };
 export const page_up = (candidate?: unknown) => {
   const camera = resolve_camera(candidate);
   update_viewport(camera);
-  const top = camera.y, bottom = top + page_pixels(camera);
-  let target = top - page_pixels(camera);
-  for (const { start, end } of must_view_spans(camera)) if (end < bottom && end > top && start < top) target = Math.max(target, end - page_pixels(camera));
+  const page = page_pixels(camera), top = camera.y, bottom = top + page;
+  let target = top - page;
+  // Mirror of page_down: align a block cut off by the top edge to the bottom edge when its hidden part is shorter than a page.
+  for (const { start, end } of must_view_spans(camera)) if (end < bottom && end > top && start < top && top - start < page) target = Math.max(target, end - page);
   scroll_to(target, 'smooth', camera);
 };

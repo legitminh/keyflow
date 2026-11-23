@@ -10,6 +10,7 @@ import MenusDemo from './MenusDemo.svelte';
 import ControlsDemo from './ControlsDemo.svelte';
 import SlidersDemo from './SlidersDemo.svelte';
 import ThemeDemo from './ThemeDemo.svelte';
+import MustViewDemo from './MustViewDemo.svelte';
 const component = window.location.pathname === '/scrollframes' ? ScrollFramesDemo
   : window.location.pathname === '/flow' ? App
   : window.location.pathname === '/stack' ? StackDemo
@@ -20,5 +21,6 @@ const component = window.location.pathname === '/scrollframes' ? ScrollFramesDem
   : window.location.pathname === '/controls' ? ControlsDemo
   : window.location.pathname === '/sliders' ? SlidersDemo
   : window.location.pathname === '/themes' ? ThemeDemo
+  : window.location.pathname === '/mustview' ? MustViewDemo
   : window.location.pathname === '/static' ? StaticDemo : StackDemo;
 mount(component, { target: document.getElementById('app')! });
