@@ -1,6 +1,6 @@
 <!--
   Numeric single-line TextBox. The draft text is validated when editing ends (Enter, the exit trigger,
-  or the controller's exit()): it is parsed, clamped to [min, max], snapped to `step`, and written to
+  an outside click, or the controller's exit()): it is parsed, clamped to [min, max], snapped to `step`, and written to
   `value`; unparsable drafts revert. While editing, physical ArrowUp/ArrowDown nudge by one step.
 -->
 <script lang="ts">

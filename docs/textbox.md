@@ -1,6 +1,6 @@
 # TextBox: an editing InputFrame
 
-`TextBox` is a multiline text input that starts as a shortcut-enabled button. Clicking it or entering its configured trigger pushes a private editing frame. The native textarea then owns text input; lower-frame controls remain disabled. Escape exits by default. Clicking elsewhere does not exit, discard text, or reactivate the page.
+`TextBox` is a multiline text input that starts as a shortcut-enabled button. Clicking it or entering its configured trigger pushes a private editing frame. The native textarea then owns text input; lower-frame controls remain disabled. Escape exits by default. Clicking or tapping outside the textbox also exits its private editing frame, keeps the text, and reactivates the parent frame, so touch and mouse users can leave without an Escape key.
 
 ```svelte
 <script lang="ts">
@@ -76,7 +76,7 @@ These methods use the same editing lifecycle as the built-in triggers. They retu
 
 ## Editing behavior
 
-TextBox renders a normal textarea without an editing toolbar. Physical typing, mouse/touch selection, copy/paste/cut, printing, native undo/redo, Tab navigation, IME composition and OS emoji input keep their browser behavior. Only the configured exit binding is intercepted. Clicking elsewhere can move focus normally while the editing frame remains active until its exit trigger or application cleanup.
+TextBox renders a normal textarea without an editing toolbar. Physical typing, mouse/touch selection, copy/paste/cut, printing, native undo/redo, Tab navigation, IME composition and OS emoji input keep their browser behavior. Only the configured exit binding is intercepted. Clicking or tapping outside ends editing while preserving normal focus on the clicked control. Tab and window blur alone do not end editing.
 
 Virtual characters, flick translations, Backspace/Delete, Enter, Tab, arrows and Home/End adapt to the textarea's existing selection. Virtual Enter inserts a newline; virtual Tab inserts a tab. Physical Tab retains ordinary focus navigation. Native clipboard and browser commands, including Cmd/Ctrl+C, V, X, P and Z, are never replaced by library clipboard or history handlers.
 
@@ -87,6 +87,25 @@ Physical Shift works with virtual arrows and characters. Where a keyboard layout
 Virtual text insertion uses the browser's native edit command where supported to preserve native undo history, with a textarea selection-API fallback. Physical undo/redo is always left to the browser. TextBox does not access the Clipboard API or request clipboard permissions. Its virtual adapter never synthesizes trusted browser/OS shortcuts.
 
 The value is retained when exiting and reopening. A child InputFrame can temporarily mask the editor—for example, to select a different keyboard. Popping the child restores editing focus and selection. TextBox owns and disposes its private frame; clients do not manage it manually. Escape during composition remains available to the OS/browser, and the configured exit trigger resumes after composition.
+
+## Click-outside integration contract
+
+TextBox handles outside dismissal itself: it finishes client marked text, keeps `bind:value`, removes its private frame, and calls `onexit(value)` once. `NumberBox` validates and commits its draft through the same exit lifecycle. Custom exit shortcuts do not disable outside dismissal. The outside click keeps its normal action and focus; it does not restore opener focus like Escape or `exit()`. A disabled parent control dismisses editing without triggering that control.
+
+Do not add a textarea `blur` handler that pops or disposes frames, and do not reset the frame stack to close a TextBox. Focus can leave the textarea for a virtual key, Tab navigation, or a child frame while editing remains open. Use the bound `exit()` API for an explicit Finish button. Dismissal applies only when the textbox's own frame is topmost. A click that opens a child frame suspends the editor; closing that child resumes editing and selection.
+
+Keyflow's `VirtualKeyboard`, `ActiveKeyboard` and `KeyboardDisplay` keep the editor open automatically, including their toolbar and custom key displays. For a custom keyboard, suggestion bar, or editing toolbar outside the textbox, put `data-keyflow-textbox-keep-open` on its container (or an individual control):
+
+```svelte
+<div data-keyflow-textbox-keep-open>
+  <button type="button" onclick={() => editor?.edit((text) => text.insert('suggestion'))}>
+    Insert suggestion
+  </button>
+  <!-- A custom virtual keyboard belongs in this container too. -->
+</div>
+```
+
+The attribute protects clicks on the element and its descendants. Apply it only to controls that belong to the editing session; marking the whole page would prevent users from clicking outside to leave. No event cancellation is needed. Custom keyboards must still forward keys through `keyflow_key_handler` as described below. Keep outside click events propagating so TextBox can observe them; the listener runs in capture and waits for the target's action before deciding whether to exit.
 
 ## Input methods
 
@@ -163,7 +182,7 @@ TextBox uses this narrow hook to check its exit binding before allowing native e
 
 ## Try the demo
 
-Run `pnpm demo`. On `/` (also `/stack`), click **Keyboard text editor** or input T. Type physically, tap/flick the docked keyboard, select text with a mouse, and use native clipboard/browser shortcuts. Tap Escape to return. Expand the custom-trigger example to test primary-modifier+K entry and primary-modifier+Enter exit.
+Run `pnpm demo`. On `/` (also `/stack`), click **Keyboard text editor** or input T. Type physically, tap/flick the docked keyboard, select text with a mouse, and use native clipboard/browser shortcuts. Click or tap outside the textbox, or tap Escape, to return. Expand the custom-trigger example to test primary-modifier+K entry and primary-modifier+Enter exit.
 
 Visit `/controls` for client-supplied openers, hover overlays, and live entry/exit binding selectors. It also demonstrates API exit, disabled editors, and a child frame that temporarily masks editing.
 

@@ -35,6 +35,7 @@
   const automatic: InputToken = { priority: 0, on_close: enter };
   const exitToken = create_static_token(exit);
   const descriptionId = $props.id();
+  let container: HTMLDivElement;
   let textarea: HTMLTextAreaElement;
   let button = $state<HTMLButtonElement>();
   let editor = $state.raw<TextareaEditor>();
@@ -42,6 +43,7 @@
   let backdrop = $state<HTMLDivElement>();
   let mounted = false;
   let opener: HTMLElement | undefined;
+  let entryRevision = 0;
   let editing = $derived($stack.includes(frame));
   let active = $derived($active_input_frame === frame);
   const exitDescription = exitToken.description;
@@ -52,6 +54,7 @@
     if (!mounted || disabled || $active_input_frame !== parent || editing) return;
     opener = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     editor?.resetModifiers();
+    entryRevision++;
     input_frame_manager.push(frame);
     await tick();
     if (mounted && $active_input_frame === frame) {
@@ -61,16 +64,35 @@
   }
   /** Exit the topmost editing frame, preserving the value and restoring opener focus. */
   export async function exit() {
+    await closeEditing(true);
+  }
+  async function closeEditing(restoreFocus: boolean) {
     if (!mounted || $active_input_frame !== frame) return;
     endComposition();
     editor?.resetModifiers();
     frame.deactivate();
     await tick();
-    if (mounted && $active_input_frame === parent) {
+    if (restoreFocus && mounted && $active_input_frame === parent) {
       const target = opener?.isConnected && opener !== document.body ? opener : button;
       if (target) target.focus({ preventScroll: true });
       else if (document.activeElement === textarea) textarea.blur();
     }
+  }
+  function outsideClick(event: MouseEvent) {
+    if ($active_input_frame !== frame) return;
+    const path = event.composedPath();
+    if (path.includes(container) || path.some((node) => node instanceof Element && node.hasAttribute('data-keyflow-textbox-keep-open'))) return;
+    // Capture the frame before the target runs, then let its action finish first. Opening a
+    // child frame must suspend this editor; an entry click must not immediately close it.
+    const revision = entryRevision;
+    setTimeout(() => {
+      if (mounted && entryRevision === revision && $active_input_frame === frame) void closeEditing(false);
+    }, 0);
+  }
+  function disabledPointerUp(event: PointerEvent) {
+    // Disabled controls do not emit click. Wait until the pointer's entire activation has
+    // finished so re-enabling the parent cannot turn dismissal into a click-through action.
+    if (event.composedPath().some((node) => node instanceof Element && node.matches(':disabled'))) outsideClick(event);
   }
   /**
    * Edit the text from client controls (a suggestion bar, a toolbar) with the same
@@ -158,12 +180,14 @@
     textarea.addEventListener('pointerup', lose);
     textarea.addEventListener('scroll', syncBackdrop);
     window.addEventListener('blur', reset);
-    return () => { mounted = false; unregister(); textarea.removeEventListener('pointerup', lose); textarea.removeEventListener('scroll', syncBackdrop); window.removeEventListener('blur', reset); editor?.destroy(); };
+    document.addEventListener('click', outsideClick, true);
+    document.addEventListener('pointerup', disabledPointerUp, true);
+    return () => { mounted = false; unregister(); textarea.removeEventListener('pointerup', lose); textarea.removeEventListener('scroll', syncBackdrop); window.removeEventListener('blur', reset); document.removeEventListener('click', outsideClick, true); document.removeEventListener('pointerup', disabledPointerUp, true); editor?.destroy(); };
   });
   onDestroy(() => frame.dispose());
 </script>
 
-<div class="keyflow-textbox {className}" class:single-line={singleLine}>
+<div bind:this={container} class="keyflow-textbox {className}" class:single-line={singleLine}>
   {#if showEntry && !editing}
     <button type="button" bind:this={button} class="text-entry" aria-label={label}
       disabled={disabled || $active_input_frame !== parent}
@@ -181,7 +205,7 @@
     <textarea bind:this={textarea} bind:value {...attributes} rows={singleLine ? 1 : rows} wrap={singleLine ? 'off' : wrap} {placeholder}
       disabled={disabled || !active} aria-label={label} aria-describedby={descriptionId}
       oninput={(event) => { if (singleLine && /[\r\n]/.test(value)) value = value.replace(/\r?\n|\r/g, ' '); oninput?.(event); syncBackdrop(); }}></textarea>
-    <p id={descriptionId} class="editor-status" role="status">{`Exit with ${exitLabel}`}</p>
+    <p id={descriptionId} class="editor-status" role="status">{`Exit with ${exitLabel} or click outside`}</p>
   </section>
 </div>
 

@@ -62,7 +62,7 @@
           <option value="auto">Automatic</option>
           <option value="t">T</option><option value="y">Y</option>
         </select></label>
-        <label>Exit binding <select bind:value={exitTrigger}>
+        <label data-keyflow-textbox-keep-open>Exit binding <select bind:value={exitTrigger}>
           <option value="escape">Escape</option><option value="F2">F2</option>
         </select></label>
         <label><input type="checkbox" bind:checked={disabled} /> Disable editor</label>
@@ -78,7 +78,7 @@
         <HoverButtonPositional on_close={open}>Positional hover opener</HoverButtonPositional>
       </div>
       <div class="controls">
-        <button type="button" onclick={open}>Native API opener</button>
+        <button type="button" data-keyflow-textbox-keep-open onclick={open}>Native API opener</button>
         <button type="button" onclick={() => textbox?.exit()}>Exit via API</button>
         <button type="button" onclick={() => input_frame_manager.push(child)}>Push child frame</button>
       </div>
@@ -91,6 +91,10 @@
         <TextBox bind:this={textbox} bind:value {enterTrigger} {exitTrigger} {disabled} {showEntry}
           label="Externally opened editor" onenter={() => entries++} onexit={() => exits++} />
       {/if}
+      <div data-keyflow-textbox-keep-open role="group" aria-label="Editor suggestions">
+        <button type="button" onclick={() => textbox?.edit((composition) => composition.insert('suggestion'))}>Insert suggestion</button>
+      </div>
+      <label>Outside field <input aria-label="Outside field" /></label>
       <TextBox bind:value={composed} inputMethod={shouting} label="Input method editor" enterTrigger={null} />
       <div class="controls" role="group" aria-label="Single-line fields">
         <TextBox bind:value={title} singleLine label="Layer title" />

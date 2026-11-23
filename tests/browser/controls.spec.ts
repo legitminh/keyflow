@@ -48,7 +48,7 @@ test('entry and exit props can change at runtime, including external-only and au
   await expect(editor(page)).toBeFocused();
   await page.getByLabel('Exit binding').selectOption('F2');
   await editor(page).focus();
-  await expect(page.getByRole('status')).toHaveText('Exit with f2');
+  await expect(page.getByRole('status')).toHaveText('Exit with f2 or click outside');
   await page.keyboard.press('Escape');
   await expect(stack(page)).toHaveText('root → textbox');
   await page.keyboard.press('F2');
@@ -215,4 +215,45 @@ test('a client input method composes underlined marked text and commits it', asy
   await page.keyboard.type('1');
   await expect(editor).toHaveValue('H1EY YO');
   await expect(page.locator('.keyflow-marked')).toHaveCount(0);
+});
+
+
+test('outside dismissal preserves destination focus and ends one session; custom suggestions keep editing', async ({ page }) => {
+  await page.goto('/controls');
+  await page.getByRole('button', { name: 'Native API opener', exact: true }).click();
+  await editor(page).fill('kept ');
+  await page.getByRole('button', { name: 'Insert suggestion' }).click();
+  await expect(editor(page)).toHaveValue('kept suggestion');
+  await expect(stack(page)).toHaveText('root → textbox');
+  await expect(editor(page)).toBeFocused();
+  const outside = page.getByRole('textbox', { name: 'Outside field', exact: true });
+  await outside.click();
+  await expect(stack(page)).toHaveText('root');
+  await expect(editor(page)).toBeHidden();
+  await expect(outside).toBeFocused();
+  await expect(page.getByLabel('Editing sessions')).toHaveText('Entries: 1; exits: 1');
+  await page.getByRole('heading').click();
+  await expect(page.getByLabel('Editing sessions')).toHaveText('Entries: 1; exits: 1');
+  await page.getByRole('button', { name: 'Native API opener', exact: true }).click();
+  await expect(editor(page)).toHaveValue('kept suggestion');
+});
+
+test('outside dismissal finishes marked text and commits single-line numeric drafts', async ({ page }) => {
+  await page.goto('/controls');
+  const heading = page.getByRole('heading');
+  await page.getByRole('button', { name: 'Input method editor', exact: true }).click();
+  await page.keyboard.type('hi');
+  await expect(page.locator('.keyflow-marked')).toHaveText('HI');
+  await heading.click();
+  await expect(stack(page)).toHaveText('root');
+  await expect(page.locator('.keyflow-marked')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Input method editor', exact: true }).click();
+  await page.keyboard.type('x');
+  await expect(page.getByRole('textbox', { name: 'Input method editor', exact: true })).toHaveValue('HIX');
+  await heading.click();
+  await page.getByRole('button', { name: 'Quantity', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Quantity', exact: true }).fill('250');
+  await heading.click();
+  await expect(stack(page)).toHaveText('root');
+  await expect(page.getByLabel('Field values')).toHaveText('Ink|100');
 });

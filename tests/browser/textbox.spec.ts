@@ -16,7 +16,7 @@ async function enter(page: Page) {
   await expect(field(page)).toBeFocused();
 }
 
-test('entry trigger/click pushes an editing frame; blur does not exit; Escape preserves text', async ({ page }) => {
+test('entry trigger/click pushes an editing frame; outside click exits and preserves text', async ({ page }) => {
   await page.goto('/');
   await page.keyboard.press('t');
   await expect(field(page)).toBeFocused();
@@ -26,9 +26,8 @@ test('entry trigger/click pushes an editing frame; blur does not exit; Escape pr
   await page.keyboard.insertText('日本語 👩‍💻');
   await expect(field(page)).toHaveValue('a\ne日本語 👩‍💻');
   await page.getByRole('heading', { name: 'Keyflow · touch & flick' }).click();
-  await expect(field(page)).not.toBeFocused();
-  await expect(page.getByLabel('Frame stack')).toHaveText('root → textbox');
-  await key(page, 'escape').click();
+  await expect(field(page)).toBeHidden();
+  await expect(page.getByRole('button', { name: /Page A/ })).toBeEnabled();
   await expect(page.getByLabel('Frame stack')).toHaveText('root');
   await expect(page.getByRole('button', { name: 'Keyboard text editor', exact: true })).toContainText('a\ne日本語 👩‍💻');
   await expect(page.getByLabel('Page action count')).toHaveText('Page actions: 0');
@@ -201,4 +200,33 @@ test('physical Tab keeps normal focus navigation without ending the editing fram
   await expect(page.getByLabel('Frame stack')).toHaveText('root → textbox');
   await page.keyboard.press('Shift+Tab');
   await expect(field(page)).toBeFocused();
+});
+
+
+test('disabled parent controls dismiss without firing their action', async ({ page }) => {
+  await enter(page);
+  await field(page).fill('retained');
+  const parent = page.getByRole('button', { name: /Page A/ });
+  const box = (await parent.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(page.getByLabel('Frame stack')).toHaveText('root');
+  await expect(page.getByLabel('Page action count')).toHaveText('Page actions: 0');
+  await page.getByRole('button', { name: 'Keyboard text editor', exact: true }).click();
+  await expect(field(page)).toHaveValue('retained');
+});
+
+
+test('touch users can tap outside to exit without Escape', async ({ browser }) => {
+  const page = await browser.newPage({ hasTouch: true });
+  try {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Keyboard text editor', exact: true }).tap();
+    await expect(field(page)).toBeFocused();
+    await field(page).fill('touch text');
+    await key(page, 'q').tap();
+    await expect(field(page)).toHaveValue('touch textq');
+    await page.getByRole('heading').tap();
+    await expect(page.getByLabel('Frame stack')).toHaveText('root');
+    await expect(page.getByRole('button', { name: 'Keyboard text editor', exact: true })).toContainText('touch textq');
+  } finally { await page.close(); }
 });

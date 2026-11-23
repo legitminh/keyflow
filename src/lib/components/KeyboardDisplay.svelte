@@ -12,7 +12,7 @@
   } & InteractionHandlers = $props();
 </script>
 
-<section class="keyflow-keyboard {className}" data-layout={layout?.id} aria-label={layout?.label ?? 'Virtual keyboard'}>
+<section data-keyflow-textbox-keep-open class="keyflow-keyboard {className}" data-layout={layout?.id} aria-label={layout?.label ?? 'Virtual keyboard'}>
   {#if toolbar}<div class="keyboard-toolbar" role="group" aria-label="Keyboard controls">{@render toolbar()}</div>{/if}
   {#if layout}
     {#each layout.rows as row}
