@@ -8,7 +8,7 @@
   import type { InputToken } from '../stores/input.js';
   import type { Shortcut } from '../shortcuts.js';
   import { TextareaEditor } from '../text-editor.js';
-  import type { MarkedRange, TextInputMethod } from '../text-input-method.js';
+  import type { MarkedRange, TextComposition, TextInputMethod } from '../text-input-method.js';
   import ButtonDisplay from './ButtonDisplay.svelte';
   import StaticButtonDisplay from './StaticButtonDisplay.svelte';
 
@@ -71,6 +71,17 @@
       if (target) target.focus({ preventScroll: true });
       else if (document.activeElement === textarea) textarea.blur();
     }
+  }
+  /**
+   * Edit the text from client controls (a suggestion bar, a toolbar) with the same
+   * composition API an input method uses, so the change joins native undo history.
+   */
+  export function edit(change: (composition: TextComposition) => void) {
+    if (!editor) return false;
+    editor.checkComposition();
+    change(editor.composition);
+    if (editing) focusEditor();
+    return true;
   }
   function endComposition() {
     if (!editor?.marked) return;

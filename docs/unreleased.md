@@ -9,6 +9,7 @@ Notes for the next minor release (`pnpm release minor --notes-file docs/unreleas
 - `TextBox singleLine`: a one-line field one min-box high. Enter (physical or virtual) commits, and pasted line breaks become spaces.
 - `NumberBox`: a numeric single-line TextBox. On commit it parses, clamps to `min`/`max` and snaps to `step`. Unparsable text reverts. ArrowUp/ArrowDown nudge the value while editing.
 - `TextBox inputMethod`: a client `TextInputMethod` (IME, phonetic keyboard) receives physical and virtual keys first and edits through a `TextComposition` with underlined marked text, commit, cancel and native undo history.
+- `TextBoxController.edit(change)`: client controls edit a TextBox through the same `TextComposition` an input method uses.
 - `KeypathToggle`: switches buttons between showing their keypath (shortcut labels) in front and hiding it. Shortcut colors and highlights remain, and shortcuts keep working while hidden.
 
 ## New state and options

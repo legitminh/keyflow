@@ -69,6 +69,7 @@ Both trigger props are reactive. Reassigning either replaces its binding and cle
 | Instance method | Behavior |
 | --- | --- |
 | `await editor.enter()` | Enters when mounted, enabled, and the parent frame is active; resolves after editor focus and `onenter`. Repeated entry or entry from another active frame does nothing. |
+| `editor.edit(change)` | Runs `change(composition)` with the same `TextComposition` an input method receives, then returns focus to the editor if it is open. Use it for client controls that edit the text, such as a suggestion bar, so edits join native undo history and respect marked text. Returns `false` before mount. |
 | `await editor.exit()` | Exits when the textbox's editing frame is topmost, retains the value, and restores focus to the connected opener (or built-in button). Does nothing while a child frame is on top. |
 
 These methods use the same editing lifecycle as the built-in triggers. They return `Promise<void>` and safely do nothing when their guards are not met. Wait for the component to mount before calling `enter()`; a client `onMount` can `await tick()` first. Keep state in `bind:value` if conditionally unmounting the component. Unmounting disposes its editing frame and removes any frames above it.
