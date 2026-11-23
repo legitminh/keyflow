@@ -25,7 +25,7 @@ Read the [migration guide and complete API examples](docs/input-frames-and-keybo
 
 ## Add to your project
 ```sh
-pnpm add https://github.com/legitminh/keyflow/releases/download/v0.11.1/legitminh-keyflow-0.11.1.tgz
+pnpm add https://github.com/legitminh/keyflow/releases/download/v0.11.2/legitminh-keyflow-0.11.2.tgz
 
 pnpm check
 pnpm build
@@ -55,10 +55,10 @@ pnpm build
 pnpm pack
 ```
 
-Copy `legitminh-keyflow-0.11.1.tgz` into the consuming project's `vendor/` directory, then install it:
+Copy `legitminh-keyflow-0.11.2.tgz` into the consuming project's `vendor/` directory, then install it:
 
 ```sh
-pnpm add ./vendor/legitminh-keyflow-0.11.1.tgz
+pnpm add ./vendor/legitminh-keyflow-0.11.2.tgz
 ```
 
 Commit that archive and the consumer's lockfile so a clean checkout needs neither this source repository nor private registry access.
