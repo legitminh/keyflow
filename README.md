@@ -199,7 +199,7 @@ Keypaths are the shortcut labels displayed in front of `Button`, `ButtonPosition
 **Recommended setup for implementers:**
 
 - Pass `keypathVisible: 'auto'` in the `Keyflow` options. Keypaths then default to **shown on computers**, whose users care about keyboard navigation, and **hidden on iPads, phones and other touch-first devices**, where labels are noise. Detection uses the `(hover: hover) and (pointer: fine)` media query; `detect_keypath_visible()` exposes the same check.
-- Always expose `KeypathToggle` (for example next to `ThemeToggle` in a settings area), so computer users who prefer not to navigate by keyboard can hide keypaths, and tablet users with a hardware keyboard can show them.
+- Always expose keypath display on the settings screen (see [Required user settings](#required-user-settings)), with `KeypathToggle` or your own buttons, so computer users who prefer not to navigate by keyboard can hide keypaths, and tablet users with a hardware keyboard can show them.
 
 ```svelte
 <Keyflow options={{ keypathVisible: 'auto' }}>
@@ -218,6 +218,38 @@ import { keypath_visibility } from '@legitminh/keyflow';
 keypath_visibility.visible; // current state
 keypath_visibility.set(false);
 keypath_visibility.toggle();
+```
+
+## Required user settings
+
+Every Keyflow app must give its users a settings screen (for example a page or dialog opened from a settings icon) with these three controls. They are part of Keyflow's accessibility contract, so an app is not complete without them:
+
+| Setting | What users choose | Built-in control | State API |
+| --- | --- | --- | --- |
+| Color theme | Each configured palette, plus `system` | `ThemeToggle` (cycles) | `themes`, `state_theme.theme_id`, `set_theme_id(id)` |
+| Keypath display | Show or hide shortcut labels | `KeypathToggle` | `keypath_visibility.visible`, `.set()`, `.toggle()` |
+| Box size (min-box scaling) | The grid unit in pixels; every control, gap and font derived from `--min-box` scales with it | `NumberBox` bound to the value | `min_box.value`, `min_box.set(px)` |
+
+Practices:
+
+- Put the three together on the settings screen, not scattered across other pages. Keep each one reachable by keyboard: use Keyflow `Button`s (one per theme, `shown`/`hidden`) or the built-in toggles.
+- Offer `system` as a theme choice, and show which choice is current.
+- Clamp box size to a range your layout supports (for example 32–96 px), and offer a reset to your default. Step buttons (−/+) beside the `NumberBox` help touch users.
+- Do not persist these yourself. Keyflow saves them in `localStorage` and restores them on load; an app's own preferences (such as an interface language) belong on the same screen but in the app's own storage.
+- Start with `keypathVisible: 'auto'` (see [Keypath visibility](#keypath-visibility)) so the first run suits the device.
+
+```svelte
+<script lang="ts">
+  import { Button, NumberBox, keypath_visibility, min_box, set_theme_id, state_theme, themes } from '@legitminh/keyflow';
+  let box = $state(min_box.value);
+</script>
+
+{#each [...themes.map((_, index) => index), 'system'] as id}
+  <Button on_close={() => set_theme_id(id)}>{id === 'system' ? 'system' : themes[id].name}{state_theme.theme_id === id ? ' ✓' : ''}</Button>
+{/each}
+<Button on_close={() => keypath_visibility.set(true)}>shown</Button>
+<Button on_close={() => keypath_visibility.set(false)}>hidden</Button>
+<NumberBox bind:value={box} min={32} max={96} label="Box size" onchange={(value) => min_box.set(value)} />
 ```
 
 ## Static shortcuts
