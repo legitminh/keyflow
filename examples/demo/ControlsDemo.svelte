@@ -3,7 +3,7 @@
   import {
     Keyflow, Document, Button, ButtonPositional, Interactable, StaticButton,
     HoverButton, HoverButtonPositional, TextBox, NumberBox, InputFrame,
-    create_input_frame, input_frame_manager, type TextBoxController, type Shortcut
+    create_input_frame, input_frame_manager, type TextBoxController, type Shortcut, type TextInputMethod
   } from '../../src/lib/index.js';
   import '../../src/lib/styles.css';
 
@@ -23,6 +23,29 @@
   const active = input_frame_manager.active;
   const child = create_input_frame({ name: 'child' });
   const open = () => { void textbox?.enter(); };
+  // A tiny input method: letters compose an underlined, uppercase word; Space commits it, Backspace edits it.
+  let composing = '';
+  let composed = $state('');
+  const shouting: TextInputMethod = {
+    key(type, input, composition) {
+      if (input.ctrlKey || input.metaKey || input.altKey) return false;
+      const key = input.key;
+      if (/^[a-z]$/i.test(key)) {
+        if (type === 'keydown') { composing += key.toUpperCase(); composition.setMarked(composing); }
+        return true;
+      }
+      if (key === ' ' && composing) {
+        if (type === 'keydown') { composition.commit(`${composing} `); composing = ''; }
+        return true;
+      }
+      if (key === 'Backspace' && composing) {
+        if (type === 'keydown') { composing = composing.slice(0, -1); composition.setMarked(composing); }
+        return true;
+      }
+      return false;
+    },
+    reset() { composing = ''; }
+  };
   onDestroy(() => child.dispose());
 </script>
 
@@ -68,6 +91,7 @@
         <TextBox bind:this={textbox} bind:value {enterTrigger} {exitTrigger} {disabled} {showEntry}
           label="Externally opened editor" onenter={() => entries++} onexit={() => exits++} />
       {/if}
+      <TextBox bind:value={composed} inputMethod={shouting} label="Input method editor" enterTrigger={null} />
       <div class="controls" role="group" aria-label="Single-line fields">
         <TextBox bind:value={title} singleLine label="Layer title" />
         <NumberBox bind:value={amount} min={0} max={100} step={0.5} label="Quantity" />

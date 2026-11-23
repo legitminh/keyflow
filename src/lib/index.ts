@@ -104,3 +104,4 @@ export { normalize_slider_value, type SliderController, type SliderDirection, ty
 export type { ScrollKeys } from './scroll.js';
 
 export { scroll_obstruction } from './viewport.js';
+export type { TextInputMethod, TextComposition, MarkedRange } from './text-input-method.js';

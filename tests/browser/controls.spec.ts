@@ -195,3 +195,24 @@ test('single-line TextBox commits on Enter; NumberBox clamps, snaps, nudges and 
   await page.keyboard.press('Escape');
   await expect(values).toHaveText('Sketch|13');
 });
+
+test('a client input method composes underlined marked text and commits it', async ({ page }) => {
+  await page.goto('/controls');
+  await page.getByRole('button', { name: 'Input method editor', exact: true }).click();
+  const editor = page.getByRole('textbox', { name: 'Input method editor', exact: true });
+  await expect(editor).toBeFocused();
+  await page.keyboard.type('hi');
+  await expect(editor).toHaveValue('HI');
+  await expect(page.locator('.keyflow-marked')).toHaveText('HI');
+  await page.keyboard.press('Backspace');
+  await expect(editor).toHaveValue('H');
+  await page.keyboard.type('ey ');
+  await expect(editor).toHaveValue('HEY ');
+  await expect(page.locator('.keyflow-marked')).toHaveCount(0);
+  await page.keyboard.type('yo');
+  await editor.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(0, 0));
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.type('1');
+  await expect(editor).toHaveValue('H1EY YO');
+  await expect(page.locator('.keyflow-marked')).toHaveCount(0);
+});

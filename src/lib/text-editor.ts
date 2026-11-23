@@ -1,5 +1,6 @@
 import { normalize_event_key } from './shortcuts.js';
 import type { KeyInput } from './input-events.js';
+import type { MarkedRange, TextComposition } from './text-input-method.js';
 
 type Snapshot = { value: string; start: number; end: number; direction: 'forward' | 'backward' | 'none' };
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
@@ -15,6 +16,12 @@ export class TextareaEditor {
   private composing = false;
   private column: number | null = null;
   private verticalFocus: number | null = null;
+  private mark: (MarkedRange & { original: string }) | null = null;
+  private applying = false;
+  /** Called when a client composition is lost to native typing or a caret move. */
+  oncompositionlost: (() => void) | undefined;
+  /** Called whenever the marked range changes, for rendering. */
+  onmarkedchange: ((range: MarkedRange | null) => void) | undefined;
 
   constructor(readonly element: HTMLTextAreaElement) {
     element.addEventListener('input', this.input);
@@ -36,7 +43,10 @@ export class TextareaEditor {
     const el = this.element;
     return { value: el.value, start: el.selectionStart, end: el.selectionEnd, direction: el.selectionDirection };
   }
-  private input = () => { this.column = null; };
+  private input = () => {
+    this.column = null;
+    if (!this.applying && this.mark) this.loseComposition();
+  };
   private compositionStart = () => { this.composing = true; };
   private compositionEnd = () => { this.composing = false; };
   private emit(inputType: string, data: string | null = null) {
@@ -79,6 +89,74 @@ export class TextareaEditor {
       this.element.setRangeText(inserted, start, end, 'end');
     }
     if (!emitted) this.emit(inputType, inserted || null);
+  }
+  get marked(): MarkedRange | null { return this.mark ? { start: this.mark.start, end: this.mark.end } : null; }
+  private setMark(mark: (MarkedRange & { original: string }) | null) {
+    this.mark = mark;
+    this.onmarkedchange?.(this.marked);
+  }
+  private loseComposition() {
+    if (!this.mark) return;
+    this.setMark(null);
+    this.oncompositionlost?.();
+  }
+  /** Drop the mark when the caret left it (click, native arrows). Returns whether a mark remains. */
+  checkComposition() {
+    if (!this.mark) return false;
+    const { start, end, value } = this.read();
+    if (start !== end || start !== this.mark.end || value.length < this.mark.end) this.loseComposition();
+    return !!this.mark;
+  }
+  private replace(text: string, start: number, end: number) {
+    this.applying = true;
+    try { this.insert(text, 'insertText', start, end); }
+    finally { this.applying = false; }
+  }
+  /** The composition interface handed to a TextInputMethod. */
+  readonly composition: TextComposition = this.createComposition();
+  private createComposition(): TextComposition {
+    const editor = this;
+    return {
+    get marked() { return editor.marked; },
+    get value() { return editor.element.value; },
+    get selectionStart() { return editor.element.selectionStart; },
+    get selectionEnd() { return editor.element.selectionEnd; },
+    setMarked: (text) => {
+      if (!text) return editor.composition.cancel();
+      const { start, end } = this.mark ?? this.read();
+      const original = this.mark ? this.mark.original : this.element.value.slice(start, end);
+      this.replace(text, start, end);
+      this.setMark({ start, end: start + text.length, original });
+    },
+    commit: (text) => {
+      const { start, end } = this.mark ?? this.read();
+      this.setMark(null);
+      this.replace(text, start, end);
+    },
+    finish: () => { this.setMark(null); },
+    cancel: () => {
+      if (!this.mark) return;
+      const { start, end, original } = this.mark;
+      this.setMark(null);
+      this.replace(original, start, end);
+    },
+    insert: (text) => { this.setMark(null); this.replace(text, this.element.selectionStart, this.element.selectionEnd); },
+    deleteBackward: () => {
+      this.setMark(null);
+      let { start, end } = this.read();
+      if (start === end) start = this.step(start, -1);
+      this.applying = true;
+      try { this.insert('', 'deleteContentBackward', start, end); }
+      finally { this.applying = false; }
+    },
+    moveCaret: (steps) => {
+      this.setMark(null);
+      let { start, end } = this.read();
+      let position = steps < 0 ? start : end;
+      if (start === end) for (let i = 0; i < Math.abs(steps); i++) position = this.step(position, steps < 0 ? -1 : 1);
+      this.element.setSelectionRange(position, position);
+    }
+    };
   }
   private step(position: number, direction: -1 | 1, byWord = false) {
     const value = this.element.value;

@@ -87,6 +87,51 @@ Virtual text insertion uses the browser's native edit command where supported to
 
 The value is retained when exiting and reopening. A child InputFrame can temporarily mask the editor—for example, to select a different keyboard. Popping the child restores editing focus and selection. TextBox owns and disposes its private frame; clients do not manage it manually. Escape during composition remains available to the OS/browser, and the configured exit trigger resumes after composition.
 
+## Input methods
+
+Pass `inputMethod` to give a TextBox a client text input method, such as an IME or a phonetic keyboard. The method receives every physical and virtual key signal of the editing frame after the exit binding is checked. Return `true` to consume a signal (Keyflow prevents the physical default); return `false` to keep TextBox's ordinary editing for that key. Modifier shortcuts should normally return `false` so native clipboard, undo and browser commands keep working.
+
+```ts
+import type { TextInputMethod } from '@legitminh/keyflow';
+
+let word = '';
+const shouting: TextInputMethod = {
+  key(type, input, composition) {
+    if (input.ctrlKey || input.metaKey || input.altKey) return false;
+    if (/^[a-z]$/i.test(input.key)) {
+      if (type === 'keydown') composition.setMarked(word += input.key.toUpperCase());
+      return true;
+    }
+    if (input.key === ' ' && word) {
+      if (type === 'keydown') { composition.commit(`${word} `); word = ''; }
+      return true;
+    }
+    return false;
+  },
+  reset() { word = ''; }
+};
+```
+
+```svelte
+<TextBox bind:value inputMethod={shouting} label="Notes" />
+```
+
+The `composition` argument edits the textarea's real value and selection through the same native edit path as virtual keys, so edits stay in the browser's undo history:
+
+| Member | Behavior |
+| --- | --- |
+| `marked` | The current marked range `{ start, end }`, or `null`. |
+| `value`, `selectionStart`, `selectionEnd` | Live textarea state for context-aware methods. |
+| `setMarked(text)` | Replace the marked range (or the selection) with `text` and keep it marked. Empty text cancels. |
+| `commit(text)` | Replace the marked range (or the selection) with `text` and end composition. |
+| `finish()` | Keep the marked text as typed and end composition. |
+| `cancel()` | Restore what the marked range replaced. |
+| `insert(text)`, `deleteBackward()`, `moveCaret(steps)` | Ordinary edits that first end composition. |
+
+Marked text is underlined by a backdrop that mirrors the textarea's live text box, so client styles only need to target the textarea. Composition ends, and the method's optional `reset()` is called, when the caret leaves the marked range (click, native arrows), when other code or native typing changes the value, and when editing exits. Physical OS composition (`isComposing`) still bypasses Keyflow entirely.
+
+Best practice: keep the method's state (the current syllable, word or mode) in the method object, and derive any on-screen keyboard labels from that state. A virtual keyboard only sends keys; it never edits the textarea itself. See the input method editor on `/controls`.
+
 ## Props
 
 | Prop | Meaning |
@@ -101,6 +146,7 @@ The value is retained when exiting and reopening. A child InputFrame can tempora
 | `rows` | Textarea height in rows; default `4`. |
 | `disabled` | Disable entry and end an active editing session. |
 | `wrap` | `'soft'` (default), `'off'`, or `'hard'`. |
+| `inputMethod` | Client `TextInputMethod` that receives keys before ordinary editing; see [Input methods](#input-methods). |
 | `onenter(frame)` | Called after entry and focus; receives the editing frame reference. |
 | `onexit(value)` | Called when a mounted editing session ends. |
 | `oninput(event)` | Native or virtual input notification; value binding stays synchronized. |
