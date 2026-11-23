@@ -42,10 +42,16 @@ test('paged scrolling, hash navigation, and native mode share the camera', async
   await expect(down).toBeVisible();
   await expect(up).toBeVisible();
   const downShortcut = await down.locator('.pending_route').innerText();
-  const upShortcut = await up.locator('.pending_route').innerText();
   await page.keyboard.type(downShortcut);
   await expect.poll(() => page.locator('.viewport').evaluate(node => node.scrollTop)).toBeGreaterThan(0);
-  const firstPage = await page.locator('.viewport').evaluate(node => node.scrollTop);
+  // Wait for the smooth scroll to finish: reading mid-animation gives a stale position and shortcut.
+  let previous = -1;
+  await expect.poll(async () => {
+    const now = await page.locator('.viewport').evaluate(node => node.scrollTop);
+    const settled = now === previous; previous = now; return settled;
+  }, { intervals: [150] }).toBe(true);
+  const firstPage = previous;
+  const upShortcut = await up.locator('.pending_route').innerText();
   await page.keyboard.type(upShortcut);
   await expect.poll(() => page.locator('.viewport').evaluate(node => node.scrollTop)).toBeLessThan(firstPage);
   await page.keyboard.type(upShortcut.repeat(2));
