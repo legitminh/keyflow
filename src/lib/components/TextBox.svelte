@@ -14,7 +14,7 @@
   import StaticButtonDisplay from './StaticButtonDisplay.svelte';
 
   let { value = $bindable(''), enterTrigger, exitTrigger = 'escape', priority = 0, showEntry = true,
-    label = 'Text input', placeholder = 'Click to edit', rows = 4, disabled = false,
+    label = 'text input', placeholder = 'click to edit', rows = 4, disabled = false,
     wrap = 'soft', singleLine = false, exitOnClickOutside = false, exitOnShiftEnter = true,
     inputMethod, class: className = '', onenter, onexit, oninput, ...attributes }: {
     value?: string; enterTrigger?: Shortcut | null; exitTrigger?: Shortcut; priority?: number;

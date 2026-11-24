@@ -222,6 +222,10 @@ keypath_visibility.set(false);
 keypath_visibility.toggle();
 ```
 
+## Lowercase text
+
+Keyflow apps write every piece of interface text in lowercase: labels, buttons, headings, menu items, help and messages. Keyflow's own defaults (`back`, `menu`, `text input`, `click to edit`, theme names) follow this. Keep proper capitalization only where text is data or must match exactly, such as file names, command-line flags and environment variables, and never change the case of what users type.
+
 ## Required user settings
 
 Every Keyflow app must give its users a settings screen (for example a page or dialog opened from a settings icon) with these three controls. They are part of Keyflow's accessibility contract, so an app is not complete without them:

@@ -7,7 +7,7 @@
   import type { HoverSliderProps, SliderController } from '../slider.js';
 
   let { value = $bindable(0), orientation = 'horizontal', mode = 'hover', controls,
-    decreaseKeys, increaseKeys, decreaseLabel, increaseLabel, label = 'Slider', disabled = false,
+    decreaseKeys, increaseKeys, decreaseLabel, increaseLabel, label = 'slider', disabled = false,
     ...props }: HoverSliderProps & { orientation?: 'horizontal' | 'vertical'; mode?: 'hover' | 'positional' | 'persistent' } = $props();
   let core = $state<SliderController>();
   const vertical = $derived(orientation === 'vertical');

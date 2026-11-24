@@ -47,7 +47,7 @@ test('nested dropdowns mask their parent and Escape/Back return one frame at a t
   await page.keyboard.press('Escape');
   await expect(stack(page)).toHaveText('root → File → More');
   await expect(page.getByRole('button', { name: 'Advanced', exact: true })).toBeFocused();
-  await page.getByRole('region', { name: 'More', exact: true }).getByRole('button', { name: /Back$/ }).click();
+  await page.getByRole('region', { name: 'More', exact: true }).getByRole('button', { name: /back$/ }).click();
   await expect(stack(page)).toHaveText('root → File');
   await expect(page.getByRole('button', { name: 'More', exact: true })).toBeFocused();
   await page.keyboard.press('m'); await page.keyboard.press('c');
@@ -93,7 +93,7 @@ test('arrow navigation skips disabled items and Home/End focus boundaries', asyn
   await expect(button(page, 'New file')).toBeFocused();
   await page.keyboard.press('ArrowDown'); await expect(button(page, 'Open file')).toBeFocused();
   await page.keyboard.press('ArrowDown'); await expect(button(page, 'Pin menu')).toBeFocused();
-  await page.keyboard.press('End'); await expect(file(page).getByRole('button', { name: /Back$/ })).toBeFocused();
+  await page.keyboard.press('End'); await expect(file(page).getByRole('button', { name: /back$/ })).toBeFocused();
   await page.keyboard.press('ArrowDown'); await expect(button(page, 'New file')).toBeFocused();
   await page.keyboard.press('Home'); await expect(button(page, 'New file')).toBeFocused();
 });
@@ -151,7 +151,7 @@ test('touch can open a dropdown, enter a submenu, and return to its parent', asy
   await page.getByRole('button', { name: 'File', exact: true }).tap();
   await page.getByRole('button', { name: 'More', exact: true }).tap();
   await expect(stack(page)).toHaveText('root → File → More');
-  await page.getByRole('region', { name: 'More', exact: true }).getByRole('button', { name: /Back$/ }).tap();
+  await page.getByRole('region', { name: 'More', exact: true }).getByRole('button', { name: /back$/ }).tap();
   await expect(stack(page)).toHaveText('root → File');
   await context.close();
 });
@@ -192,7 +192,7 @@ test('initial open state activates one owned frame and nullable exit still provi
   await page.getByLabel('Exit key').selectOption({ label: 'Back button only' });
   await page.keyboard.press('Escape');
   await expect(stack(page)).toHaveText('root → File');
-  await file(page).getByRole('button', { name: 'Back', exact: true }).click();
+  await file(page).getByRole('button', { name: 'back', exact: true }).click();
   await expect(stack(page)).toHaveText('root');
 });
 

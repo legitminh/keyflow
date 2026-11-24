@@ -9,7 +9,7 @@
   import type { TextBoxController } from '../textbox.js';
   import { normalize_slider_value } from '../slider.js';
 
-  let { value = $bindable(0), min = -Infinity, max = Infinity, step = 1, digits, label = 'Number', enterTrigger, exitTrigger = 'escape',
+  let { value = $bindable(0), min = -Infinity, max = Infinity, step = 1, digits, label = 'number', enterTrigger, exitTrigger = 'escape',
     priority = 0, showEntry = true, disabled = false, exitOnClickOutside = false, exitOnShiftEnter = true,
     width = '8ch', format, onchange, class: className = '' }: {
     value?: number; min?: number; max?: number; step?: number;

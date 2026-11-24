@@ -5,7 +5,7 @@
   import { normalize_slider_value, type SliderCoreProps, type SliderDirection } from '../slider.js';
 
   let { value = $bindable(0), min = 0, max = 100, step = 1, speed,
-    orientation = 'horizontal', disabled = false, label = 'Slider', valueText,
+    orientation = 'horizontal', disabled = false, label = 'slider', valueText,
     onchange, class: className = '' }: SliderCoreProps = $props();
   const frame = get_input_frame();
   const enabled = $derived(!disabled && $active_input_frame === frame);

@@ -21,7 +21,7 @@ test('an unbounded menu scrolls and pages its own frame without moving the docum
   await expect.poll(() => viewport.evaluate((node) => node.scrollTop)).toBeGreaterThan(position);
   expect(await root(page).evaluate((node) => node.scrollTop)).toBe(before);
   await item(page, 0).focus(); await page.keyboard.press('End');
-  await expect(panel.getByRole('button', { name: /Back$/ })).toBeFocused();
+  await expect(panel.getByRole('button', { name: /back$/ })).toBeFocused();
   await expect(item(page, 99).locator('.pending_route')).not.toBeEmpty();
   await page.keyboard.type((await item(page, 99).locator('.pending_route').innerText()).trim());
   await expect(page.getByLabel('Selection')).toHaveText('Item 99');

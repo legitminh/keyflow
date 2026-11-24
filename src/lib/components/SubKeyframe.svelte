@@ -21,10 +21,10 @@
   import StaticButtonDisplay from './StaticButtonDisplay.svelte';
   import SubKeyframe from './SubKeyframe.svelte';
 
-  let { label = 'Menu', items = [], children, triggerContent, itemDisplay,
+  let { label = 'menu', items = [], children, triggerContent, itemDisplay,
     enterTrigger, exitTrigger = 'escape', priority = 0, open = $bindable(false),
     disabled = false, registered = true, showTrigger = true, closeOnSelect = true, closeOnOutside = true,
-    backLabel = 'Back', presentation = 'inline', onopen, onclose, onselect, class: className = '',
+    backLabel = 'back', presentation = 'inline', onopen, onclose, onselect, class: className = '',
     on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit, on_enter, on_exit
   }: {
     label?: string; items?: readonly SubKeyframeItem[];
