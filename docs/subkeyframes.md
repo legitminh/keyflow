@@ -118,3 +118,16 @@ Fixed and sticky elements are detected automatically. For an absolutely position
 Inline elements keep their normal layout space; reserve only UI that actually overlays scrollable content. An obstruction does not clip its own descendants, so keys on an overlaid virtual keyboard remain usable.
 
 `Camera` and `ScrollIndicator` use their nearest input frame. `page_down`, `page_up` and `scroll_to` target the active frame's camera, falling back through the frame stack for frames without a camera. The legacy `state_viewport` and `y_pixels` exports continue to describe the root document. `Camera` accepts `class` and `worldClass` styling hooks; the default root classes remain `viewport` and `world`.
+
+## Overlay presentation
+
+`presentation="overlay"` opens the menu as a page stacked over the current page instead of in place. Practices:
+
+- Use it for choice lists, and for any list that may be longer than the space beside its trigger. Inline menus are for short menus only.
+- The overlay is moved to `document.body`, so page transforms, sticky headers and `overflow` on ancestors cannot clip it. It covers the whole viewport, scrolls only vertically, and wraps long labels instead of widening.
+- It is modal: clicks on the page underneath do nothing, and the parent frame stays masked until an item is chosen or Back/Escape exits. `closeOnOutside` does not apply.
+- Nested lists inherit the presentation.
+
+```svelte
+<SubKeyframe label="Language" presentation="overlay" items={languages} />
+```

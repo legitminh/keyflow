@@ -24,7 +24,7 @@
   let { label = 'Menu', items = [], children, triggerContent, itemDisplay,
     enterTrigger, exitTrigger = 'escape', priority = 0, open = $bindable(false),
     disabled = false, registered = true, showTrigger = true, closeOnSelect = true, closeOnOutside = true,
-    backLabel = 'Back', onopen, onclose, onselect, class: className = '',
+    backLabel = 'Back', presentation = 'inline', onopen, onclose, onselect, class: className = '',
     on_pressed_down, on_pressed_up, on_cursor_enter, on_cursor_exit, on_enter, on_exit
   }: {
     label?: string; items?: readonly SubKeyframeItem[];
@@ -35,6 +35,12 @@
     enterTrigger?: Shortcut | null; exitTrigger?: Shortcut | null; priority?: number;
     open?: boolean; disabled?: boolean; registered?: boolean; showTrigger?: boolean;
     closeOnSelect?: boolean; closeOnOutside?: boolean; backLabel?: string;
+    /**
+     * `inline` opens the menu in place. `overlay` stacks it over the whole page like
+     * another page: it fills the viewport, scrolls vertically when long, and blocks
+     * the page underneath until a choice, Back or Escape.
+     */
+    presentation?: 'inline' | 'overlay';
     onopen?: (context: SubKeyframeContext) => void;
     onclose?: (context: SubKeyframeContext) => void;
     onselect?: (item: SubKeyframeItem, context: SubKeyframeContext) => void;
@@ -113,8 +119,16 @@
     nodes[next].scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
     refresh_viewports();
   }
+  let layer = $state<HTMLDivElement>();
+  /** Move the overlay to the document body so page transforms and overflow cannot clip it. */
+  function portal(node: HTMLElement) {
+    document.body.appendChild(node);
+    return { destroy: () => node.remove() };
+  }
   function outside(event: MouseEvent) {
-    if (!event.isTrusted || !closeOnOutside || !included || event.button !== 0 || event.composedPath().includes(root)) return;
+    if (!event.isTrusted || !closeOnOutside || !included || event.button !== 0 || presentation === 'overlay') return;
+    const path = event.composedPath();
+    if (path.includes(root) || (layer && path.includes(layer))) return;
     // Capture the click after its target is fixed, before its action runs. This
     // preserves outside actions and lets them open another frame from the parent.
     restoreOnClose = false;
@@ -192,6 +206,41 @@
 </script>
 
 <svelte:window onkeydown={navigate} />
+{#snippet menu()}
+  <section id={panelId} class="subkeyframe-panel" aria-label={label} tabindex="-1" bind:this={panel}>
+    <Camera class="subkeyframe-viewport" worldClass="subkeyframe-world">
+    {#if items.length}
+      <ul class="subkeyframe-items">
+        {#each items as item (item.id ?? item)}
+          <li use:visibility={{ onFullyVisible: () => visibleItems.add(item.id ?? item), onHidden: () => visibleItems.delete(item.id ?? item) }}>
+            {#snippet content()}{#if itemDisplay}{@render itemDisplay(item, context)}{:else}{item.label}{/if}{/snippet}
+            {#if item.items}
+              <SubKeyframe label={item.label} items={item.items} enterTrigger={item.keys} disabled={item.disabled} registered={visibleItems.has(item.id ?? item)}
+                {exitTrigger} closeOnSelect={item.closeOnSelect ?? closeOnSelect} {closeOnOutside} {backLabel} {presentation} {onselect} {itemDisplay} triggerContent={content}
+                on_pressed_down={item.on_pressed_down} on_pressed_up={item.on_pressed_up}
+                on_cursor_enter={item.on_cursor_enter} on_cursor_exit={item.on_cursor_exit}
+                on_enter={item.on_enter} on_exit={item.on_exit} />
+            {:else if item.keys !== undefined}
+              <StaticButton {...item} registered={visibleItems.has(item.id ?? item)} keys={item.keys} on_close={() => select(item)} children={content} />
+            {:else}
+              <Button {...item} registered={visibleItems.has(item.id ?? item)} on_close={() => select(item)} children={content} />
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    {/if}
+    {@render children?.(context)}
+    <button type="button" class="subkeyframe-back" disabled={!active}
+      use:interaction={{ controller: input_token_interaction(back), disabled: !active }}
+      onclick={() => frame.trigger(back, false)}>
+      {#snippet backContent()}{backLabel}{/snippet}
+      {#if exitTrigger !== null}<StaticButtonDisplay token={back} children={backContent} />{:else}{backLabel}{/if}
+    </button>
+    </Camera>
+    <ScrollIndicator />
+  </section>
+{/snippet}
+
 <div class="keyflow-subkeyframe {className}" bind:this={root}>
   {#if showTrigger}
     <button type="button" class="subkeyframe-trigger" bind:this={trigger} aria-label={label}
@@ -206,39 +255,10 @@
     </button>
   {/if}
   <InputFrame {frame}>
-    {#if open}
-      <section id={panelId} class="subkeyframe-panel" aria-label={label} tabindex="-1" bind:this={panel}>
-        <Camera class="subkeyframe-viewport" worldClass="subkeyframe-world">
-        {#if items.length}
-          <ul class="subkeyframe-items">
-            {#each items as item (item.id ?? item)}
-              <li use:visibility={{ onFullyVisible: () => visibleItems.add(item.id ?? item), onHidden: () => visibleItems.delete(item.id ?? item) }}>
-                {#snippet content()}{#if itemDisplay}{@render itemDisplay(item, context)}{:else}{item.label}{/if}{/snippet}
-                {#if item.items}
-                  <SubKeyframe label={item.label} items={item.items} enterTrigger={item.keys} disabled={item.disabled} registered={visibleItems.has(item.id ?? item)}
-                    {exitTrigger} closeOnSelect={item.closeOnSelect ?? closeOnSelect} {closeOnOutside} {backLabel} {onselect} {itemDisplay} triggerContent={content}
-                    on_pressed_down={item.on_pressed_down} on_pressed_up={item.on_pressed_up}
-                    on_cursor_enter={item.on_cursor_enter} on_cursor_exit={item.on_cursor_exit}
-                    on_enter={item.on_enter} on_exit={item.on_exit} />
-                {:else if item.keys !== undefined}
-                  <StaticButton {...item} registered={visibleItems.has(item.id ?? item)} keys={item.keys} on_close={() => select(item)} children={content} />
-                {:else}
-                  <Button {...item} registered={visibleItems.has(item.id ?? item)} on_close={() => select(item)} children={content} />
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-        {@render children?.(context)}
-        <button type="button" class="subkeyframe-back" disabled={!active}
-          use:interaction={{ controller: input_token_interaction(back), disabled: !active }}
-          onclick={() => frame.trigger(back, false)}>
-          {#snippet backContent()}{backLabel}{/snippet}
-          {#if exitTrigger !== null}<StaticButtonDisplay token={back} children={backContent} />{:else}{backLabel}{/if}
-        </button>
-        </Camera>
-        <ScrollIndicator />
-      </section>
+    {#if open && presentation === 'overlay'}
+      <div class="subkeyframe-overlay" bind:this={layer} use:portal>{@render menu()}</div>
+    {:else if open}
+      {@render menu()}
     {/if}
   </InputFrame>
 </div>
@@ -249,4 +269,10 @@
   .subkeyframe-panel :global(.subkeyframe-world) { display: flex; flex-direction: column; gap: .5rem; }
   .subkeyframe-items { display: flex; flex-direction: column; gap: .25rem; list-style: none; margin: 0; padding: 0; }
   .subkeyframe-items :global(button), .subkeyframe-back { text-align: start; }
+  /* Overlay: a page stacked over the page. Only vertical scrolling, never wider than the viewport. */
+  :global(.subkeyframe-overlay) { position: fixed; inset: 0; z-index: 1000; display: flex; justify-content: center; align-items: flex-start;
+    box-sizing: border-box; overflow: hidden; background: var(--background, #fff); overscroll-behavior: contain; }
+  :global(.subkeyframe-overlay > .subkeyframe-panel) { width: min(100%, 40rem); max-width: 100%; border: 0; overflow-x: hidden;
+    padding: calc(var(--min-box, 48px) / 2); }
+  :global(.subkeyframe-overlay .subkeyframe-items button), :global(.subkeyframe-overlay .subkeyframe-back) { width: 100%; white-space: normal; overflow-wrap: anywhere; }
 </style>

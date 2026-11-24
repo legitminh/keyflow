@@ -209,3 +209,27 @@ test('close policies can retain a dropdown and are inherited by nested lists', a
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
   await expect(stack(page)).toHaveText('root');
 });
+
+test('an overlay dropdown stacks over the page, scrolls vertically and blocks the page until a choice', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 640 });
+  await page.getByRole('button', { name: 'Language', exact: true }).click();
+  const overlay = page.locator('.subkeyframe-overlay');
+  await expect(overlay).toBeVisible();
+  await expect(stack(page)).toHaveText('root → Language');
+  const box = await overlay.boundingBox();
+  expect(box).toMatchObject({ x: 0, y: 0, width: 390, height: 640 });
+  // Never wider than the viewport: no horizontal scrolling anywhere.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(await overlay.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  // The page underneath is masked: its controls are covered and its frame is inactive.
+  await page.mouse.click(10, 10);
+  await expect(stack(page)).toHaveText('root → Language');
+  await expect(page.getByRole('button', { name: 'Tools', exact: true })).toBeDisabled();
+  // A long list scrolls to its last item.
+  const last = button(page, 'Language 40 with a deliberately long name that would overflow a narrow screen');
+  await last.scrollIntoViewIfNeeded();
+  await last.click();
+  await expect(overlay).toHaveCount(0);
+  await expect(stack(page)).toHaveText('root');
+  await expect(page.getByLabel('Selected item')).toHaveText(/Language 40/);
+});

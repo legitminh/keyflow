@@ -68,6 +68,9 @@
       </SubKeyframe>
     {/if}
     <SubKeyframe bind:this={tools} label="Tools" enterTrigger="t" items={[{ label: 'Tool action' }]} />
+    <SubKeyframe label="Language" enterTrigger="l" presentation="overlay"
+      items={Array.from({ length: 40 }, (_, index) => ({ label: `Language ${index + 1} with a deliberately long name that would overflow a narrow screen` }))}
+      onselect={(item) => { selected = item.label; selections++; }} />
     <button onclick={() => { void tools?.enter(); }}>Open tools externally</button>
     <button class="outside" onclick={() => selected = 'outside'}>Outside action</button>
   </main>
