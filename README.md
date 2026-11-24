@@ -228,20 +228,20 @@ Every Keyflow app must give its users a settings screen (for example a page or d
 | --- | --- | --- | --- |
 | Color theme | Each configured palette, plus `system` | `ThemeToggle` (cycles) | `themes`, `state_theme.theme_id`, `set_theme_id(id)` |
 | Keypath display | Show or hide shortcut labels | `KeypathToggle` | `keypath_visibility.visible`, `.set()`, `.toggle()` |
-| Box size (min-box scaling) | The grid unit in pixels; every control, gap and font derived from `--min-box` scales with it | `NumberBox` bound to the value | `min_box.value`, `min_box.set(px)` |
+| Box size (min-box scaling) | Smaller or larger: every control, gap and font derived from `--min-box` scales with it | Two `Button`s that multiply the current value by 0.75 and 1.25 | `min_box.value`, `min_box.set(px)` |
 
 Practices:
 
 - Put the three together on the settings screen, not scattered across other pages. Keep each one reachable by keyboard: use Keyflow `Button`s (one per theme, `shown`/`hidden`) or the built-in toggles.
 - Offer `system` as a theme choice, and show which choice is current.
-- Clamp box size to a range your layout supports (for example 32–96 px), and offer a reset to your default. Step buttons (−/+) beside the `NumberBox` help touch users.
+- Scale box size by multiplying, not adding: one button sets `min_box.value * 0.75`, the other `min_box.value * 1.25`, so each press changes the layout by the same proportion at any size. Do not offer a text field for it. Show the current value, round to whole pixels, clamp to a range your layout supports, and offer a reset to your default.
 - Do not persist these yourself. Keyflow saves them in `localStorage` and restores them on load; an app's own preferences (such as an interface language) belong on the same screen but in the app's own storage.
 - Start with `keypathVisible: 'auto'` (see [Keypath visibility](#keypath-visibility)) so the first run suits the device.
 
 ```svelte
 <script lang="ts">
-  import { Button, NumberBox, keypath_visibility, min_box, set_theme_id, state_theme, themes } from '@legitminh/keyflow';
-  let box = $state(min_box.value);
+  import { Button, keypath_visibility, min_box, set_theme_id, state_theme, themes } from '@legitminh/keyflow';
+  const scale = (factor: number) => min_box.set(Math.min(192, Math.max(12, Math.round(min_box.value * factor))));
 </script>
 
 {#each [...themes.map((_, index) => index), 'system'] as id}
@@ -249,7 +249,7 @@ Practices:
 {/each}
 <Button on_close={() => keypath_visibility.set(true)}>shown</Button>
 <Button on_close={() => keypath_visibility.set(false)}>hidden</Button>
-<NumberBox bind:value={box} min={32} max={96} label="Box size" onchange={(value) => min_box.set(value)} />
+<Button on_close={() => scale(0.75)}>× 0.75</Button> {min_box.value} px <Button on_close={() => scale(1.25)}>× 1.25</Button>
 ```
 
 ## Static shortcuts

@@ -15,3 +15,4 @@ Notes for the next release (`pnpm release minor --notes-file docs/unreleased.md`
 ## Documentation
 
 - README "Required user settings": every app must offer color theme, keypath display and box size (min-box scaling) on a settings screen, with the controls and state APIs to use.
+- Box size is scaled by two buttons (× 0.75 and × 1.25), with no text field.
