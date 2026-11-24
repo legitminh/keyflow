@@ -16,8 +16,48 @@ async function enter(page: Page) {
   await expect(field(page)).toBeFocused();
 }
 
+test('outside clicks keep the editing frame open by default; Shift+Enter exits without a newline', async ({ page }) => {
+  await enter(page);
+  await field(page).fill('kept');
+  await page.getByRole('heading').click();
+  await expect(field(page)).toBeVisible();
+  await expect(page.getByLabel('Frame stack')).toHaveText('root → textbox');
+  const parent = page.getByRole('button', { name: /Page A/ });
+  const box = (await parent.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(parent).toBeDisabled();
+  await field(page).focus();
+  await page.keyboard.press('Shift+Enter');
+  await expect(field(page)).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Keyboard text editor', exact: true })).toHaveText(/kept/);
+  await expect(page.getByLabel('Frame stack')).toHaveText('root');
+});
+
+test('virtual Shift+Enter and physical Shift with virtual Enter exit; plain virtual Enter inserts a newline', async ({ page }) => {
+  await enter(page);
+  await page.getByRole('button', { name: 'Choose keyboard', exact: true }).click();
+  await page.getByRole('region', { name: 'Keyboard menu' }).getByRole('button', { name: /60% keyboard/ }).click();
+  await field(page).fill('kept');
+  await key(page, 'enter').click();
+  await expect(field(page)).toHaveValue('kept\n');
+  await key(page, 'shift').first().click();
+  await key(page, 'enter').click();
+  await expect(field(page)).toBeHidden();
+  await page.getByRole('button', { name: 'Keyboard text editor', exact: true }).click();
+  await page.keyboard.down('Shift');
+  await key(page, 'enter').click();
+  await page.keyboard.up('Shift');
+  await expect(field(page)).toBeHidden();
+  await page.getByRole('button', { name: 'Keyboard text editor', exact: true }).click();
+  await expect(field(page)).toHaveValue('kept\n');
+  await key(page, 'a').click();
+  await expect(field(page)).toHaveValue('kept\na');
+});
+
 test('entry trigger/click pushes an editing frame; outside click exits and preserves text', async ({ page }) => {
   await page.goto('/');
+  await page.getByLabel('Exit on outside click').check();
+  await page.getByRole('heading').click();
   await page.keyboard.press('t');
   await expect(field(page)).toBeFocused();
   await expect(page.getByLabel('Frame stack')).toHaveText('root → textbox');
@@ -148,6 +188,7 @@ test('composition input and emoji remain native; composing Escape does not exit'
     el.value = '日本語';
     el.dispatchEvent(new InputEvent('input', { bubbles: true, data: '日本語', inputType: 'insertCompositionText', isComposing: true }));
     for (const type of ['keydown', 'keyup']) el.dispatchEvent(new KeyboardEvent(type, { key: 'Escape', code: 'Escape', bubbles: true, isComposing: true }));
+    for (const type of ['keydown', 'keyup']) el.dispatchEvent(new KeyboardEvent(type, { key: 'Enter', code: 'Enter', shiftKey: true, bubbles: true, isComposing: true }));
     el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '日本語' }));
     el.setSelectionRange(el.value.length, el.value.length);
   });
@@ -205,6 +246,7 @@ test('physical Tab keeps normal focus navigation without ending the editing fram
 
 test('disabled parent controls dismiss without firing their action', async ({ page }) => {
   await enter(page);
+  await page.getByLabel('Exit on outside click').check();
   await field(page).fill('retained');
   const parent = page.getByRole('button', { name: /Page A/ });
   const box = (await parent.boundingBox())!;
@@ -220,6 +262,7 @@ test('touch users can tap outside to exit without Escape', async ({ browser }) =
   const page = await browser.newPage({ hasTouch: true });
   try {
     await page.goto('/');
+    await page.getByLabel('Exit on outside click').check();
     await page.getByRole('button', { name: 'Keyboard text editor', exact: true }).tap();
     await expect(field(page)).toBeFocused();
     await field(page).fill('touch text');

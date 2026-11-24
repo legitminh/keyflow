@@ -21,7 +21,7 @@ The new `VirtualKeyboard` provides color-coded text keycaps in flick-alpha, alph
 
 Read the [migration guide and complete API examples](docs/input-frames-and-keyboards.md) before updating a client. The default demo (`/`, also `/stack`) starts with flick alpha in a persistent lower-half keyboard dock; E/Choose keyboard opens the frame menu for all seven layouts plus a mixed example. See the [flick guide and complete mapping](docs/flick-keyboards.md), or `/frames` for more customization examples. The [implementation plan](docs/implementation-plan.md) records the scope and validation strategy.
 
-`TextBox` adds an input-owning editing frame with reactive entry/exit shortcuts, native textarea selection/IME/emoji support, and shared physical/virtual editing. Bind its instance and call `enter()` / `exit()` from any client button; `enterTrigger={null}` and `showEntry={false}` let your controls own entry. In the demo, click **Keyboard text editor** or press T, then exit with Escape or click/tap outside. Built-in virtual keyboards keep editing open; wrap custom keyboards and suggestion bars in `data-keyflow-textbox-keep-open` (see the guide). See the [TextBox guide](docs/textbox.md) for the typed API and complete client examples, or visit `/controls` for custom openers and hover buttons.
+`TextBox` adds an input-owning editing frame with reactive entry/exit shortcuts, native textarea selection/IME/emoji support, and shared physical/virtual editing. Bind its instance and call `enter()` / `exit()` from any client button; `enterTrigger={null}` and `showEntry={false}` let your controls own entry. In the demo, click **Keyboard text editor** or press T, then exit with Escape or Shift+Enter. Outside clicks exit only when `exitOnClickOutside` is enabled; set `exitOnShiftEnter={false}` to disable Shift+Enter exit. Built-in virtual keyboards keep editing open; wrap custom keyboards and suggestion bars in `data-keyflow-textbox-keep-open` (see the guide). See the [TextBox guide](docs/textbox.md) for the typed API and complete client examples, or visit `/controls` for custom openers and hover buttons.
 
 ## Add to your project
 ```sh
@@ -167,7 +167,7 @@ The public `f(b, h, i)` / `distribute_color()` function generates unique ordered
 
 ### Single-line text and numbers
 
-`TextBox singleLine` is a keyboard-entered one-line field: Enter commits. `NumberBox` adds parsing, clamping and step snapping on commit, plus ArrowUp/ArrowDown nudges while editing. See [TextBox](docs/textbox.md#single-line-text-and-numbers).
+`LineTextBox` (also available as `TextBox singleLine`) is a keyboard-entered one-line field: Enter exits and line breaks become spaces. `NumberBox` adds parsing, clamping and step snapping on commit, plus ArrowUp/ArrowDown nudges while editing. See [TextBox](docs/textbox.md#single-line-text-and-numbers).
 
 ### Bounded text
 

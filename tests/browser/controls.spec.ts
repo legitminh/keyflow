@@ -3,6 +3,62 @@ import { test, expect, type Page } from '@playwright/test';
 const editor = (page: Page) => page.getByRole('textbox', { name: 'Externally opened editor', exact: true });
 const stack = (page: Page) => page.getByLabel('Frame stack');
 
+async function virtualKey(page: Page, key: string) {
+  await page.evaluate(async ({ key, path }) => {
+    const { press_virtual_key } = await import(path);
+    press_virtual_key(key);
+  }, { key, path: `/@fs${process.cwd()}/src/lib/input-events.ts` });
+}
+
+test('exit options react during editing; disabling Shift+Enter restores newline input', async ({ page }) => {
+  await page.goto('/controls');
+  await page.getByRole('button', { name: 'Native API opener', exact: true }).click();
+  await editor(page).fill('one');
+  await page.getByLabel('Exit on Shift+Enter').uncheck();
+  await expect(page.getByRole('status')).toHaveText('Exit with ⎋');
+  await editor(page).focus();
+  await page.keyboard.press('Shift+Enter');
+  await expect(editor(page)).toHaveValue('one\n');
+  await virtualKey(page, 'shift');
+  await virtualKey(page, 'enter');
+  await expect(editor(page)).toHaveValue('one\n\n');
+  await virtualKey(page, 'shift');
+  await page.getByRole('heading').click();
+  await expect(stack(page)).toHaveText('root → textbox');
+  await page.getByLabel('Exit on Shift+Enter').check();
+  await editor(page).focus();
+  await page.keyboard.press('Shift+Enter');
+  await expect(stack(page)).toHaveText('root');
+  await expect(page.getByLabel('Editing sessions')).toHaveText('Entries: 1; exits: 1');
+  await page.getByRole('button', { name: 'Native API opener', exact: true }).click();
+  await page.getByLabel('Exit on outside click').check();
+  await expect(page.getByRole('status')).toHaveText('Exit with ⎋ or Shift+Enter or click outside');
+  await page.getByLabel('Exit on outside click').uncheck();
+  await page.getByRole('textbox', { name: 'Outside field', exact: true }).click();
+  await expect(stack(page)).toHaveText('root → textbox');
+  await page.getByLabel('Exit on outside click').check();
+  await page.getByRole('textbox', { name: 'Outside field', exact: true }).click();
+  await expect(stack(page)).toHaveText('root');
+});
+
+test('LineTextBox shares the controller, removes pasted and API newlines, and exits on virtual Enter', async ({ page }) => {
+  await page.goto('/controls');
+  await page.getByRole('button', { name: 'Open title via API', exact: true }).click();
+  const title = page.getByRole('textbox', { name: 'Layer title', exact: true });
+  await expect(title).toBeFocused();
+  await title.fill('first\nsecond\r\nthird');
+  await expect(title).toHaveValue('first second third');
+  await page.getByRole('button', { name: 'Insert title suggestion' }).click();
+  await expect(title).toHaveValue('first second thirdnew line');
+  await page.getByRole('button', { name: 'Finish title via API' }).click();
+  await expect(title).toBeHidden();
+  await page.getByRole('button', { name: 'Open title via API', exact: true }).click();
+  await page.getByLabel('Exit on Shift+Enter').uncheck();
+  await virtualKey(page, 'enter');
+  await expect(title).toBeHidden();
+  await expect(page.getByLabel('Field values')).toHaveText('first second thirdnew line|25');
+});
+
 test('all client button types can enter one textbox through its public API and restore focus', async ({ page }) => {
   await page.goto('/controls');
   await expect(page.getByRole('button', { name: 'Externally opened editor', exact: true })).toHaveCount(0);
@@ -48,7 +104,7 @@ test('entry and exit props can change at runtime, including external-only and au
   await expect(editor(page)).toBeFocused();
   await page.getByLabel('Exit binding').selectOption('F2');
   await editor(page).focus();
-  await expect(page.getByRole('status')).toHaveText('Exit with f2 or click outside');
+  await expect(page.getByRole('status')).toHaveText('Exit with f2 or Shift+Enter');
   await page.keyboard.press('Escape');
   await expect(stack(page)).toHaveText('root → textbox');
   await page.keyboard.press('F2');
@@ -123,6 +179,7 @@ for (const name of ['Hover action', 'Positional hover action']) {
   test(`${name} overlays its live route/progress on hover and keyboard focus`, async ({ page }, testInfo) => {
     await page.goto('/controls');
     const button = page.getByRole('button', { name, exact: true });
+    await button.scrollIntoViewIfNeeded();
     const route = button.locator('.route');
     await expect(button.locator('.pending_route')).not.toBeEmpty();
     const keys = (await button.locator('.pending_route').textContent())!;
@@ -170,7 +227,7 @@ test('hover variants retain persistent vs visible-only registration', async ({ p
   await expect(persistent.locator('.pending_route')).not.toBeEmpty();
 });
 
-test('single-line TextBox commits on Enter; NumberBox clamps, snaps, nudges and reverts invalid text', async ({ page }) => {
+test('LineTextBox commits on Enter; NumberBox clamps, snaps, nudges and reverts invalid text', async ({ page }) => {
   await page.goto('/controls');
   const values = page.getByLabel('Field values');
   await page.getByRole('button', { name: 'Layer title', exact: true }).click();
@@ -220,6 +277,7 @@ test('a client input method composes underlined marked text and commits it', asy
 
 test('outside dismissal preserves destination focus and ends one session; custom suggestions keep editing', async ({ page }) => {
   await page.goto('/controls');
+  await page.getByLabel('Exit on outside click').check();
   await page.getByRole('button', { name: 'Native API opener', exact: true }).click();
   await editor(page).fill('kept ');
   await page.getByRole('button', { name: 'Insert suggestion' }).click();
@@ -240,6 +298,7 @@ test('outside dismissal preserves destination focus and ends one session; custom
 
 test('outside dismissal finishes marked text and commits single-line numeric drafts', async ({ page }) => {
   await page.goto('/controls');
+  await page.getByLabel('Exit on outside click').check();
   const heading = page.getByRole('heading');
   await page.getByRole('button', { name: 'Input method editor', exact: true }).click();
   await page.keyboard.type('hi');

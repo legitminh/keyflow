@@ -39,6 +39,8 @@ export class TextareaEditor {
     this.physical = { shift: false, control: false, meta: false, alt: false };
     this.column = this.verticalFocus = null;
   }
+  /** Effective Shift state shared by physical keys and the virtual Shift latch. */
+  get shiftKey() { return this.virtual.shift || this.physical.shift; }
   private read(): Snapshot {
     const el = this.element;
     return { value: el.value, start: el.selectionStart, end: el.selectionEnd, direction: el.selectionDirection };

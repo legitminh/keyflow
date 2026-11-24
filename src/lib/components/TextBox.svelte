@@ -7,6 +7,7 @@
   import { create_static_token } from '../stores/static-input.js';
   import type { InputToken } from '../stores/input.js';
   import type { Shortcut } from '../shortcuts.js';
+  import { normalize_event_key } from '../shortcuts.js';
   import { TextareaEditor } from '../text-editor.js';
   import type { MarkedRange, TextComposition, TextInputMethod } from '../text-input-method.js';
   import ButtonDisplay from './ButtonDisplay.svelte';
@@ -14,7 +15,8 @@
 
   let { value = $bindable(''), enterTrigger, exitTrigger = 'escape', priority = 0, showEntry = true,
     label = 'Text input', placeholder = 'Click to edit', rows = 4, disabled = false,
-    wrap = 'soft', singleLine = false, inputMethod, class: className = '', onenter, onexit, oninput, ...attributes }: {
+    wrap = 'soft', singleLine = false, exitOnClickOutside = false, exitOnShiftEnter = true,
+    inputMethod, class: className = '', onenter, onexit, oninput, ...attributes }: {
     value?: string; enterTrigger?: Shortcut | null; exitTrigger?: Shortcut; priority?: number;
     /** Hide the built-in entry button when supplying your own opener. */
     showEntry?: boolean;
@@ -22,6 +24,10 @@
     wrap?: 'soft' | 'hard' | 'off'; class?: string;
     /** One line of text: Enter (physical or virtual) finishes editing and pasted line breaks become spaces. */
     singleLine?: boolean;
+    /** Finish editing when clicking or tapping outside. Default false. */
+    exitOnClickOutside?: boolean;
+    /** Finish editing with physical or virtual Shift+Enter. Default true. */
+    exitOnShiftEnter?: boolean;
     /** Client input method (IME/phonetic keyboard) that receives physical and virtual keys first. */
     inputMethod?: TextInputMethod;
     onenter?: (frame: InputFrameController) => void; onexit?: (value: string) => void;
@@ -48,6 +54,8 @@
   let active = $derived($active_input_frame === frame);
   const exitDescription = exitToken.description;
   let exitLabel = $derived($exitDescription.label);
+  let exitHint = $derived(`Exit with ${[exitLabel, ...(singleLine ? ['Enter'] : []),
+    ...(exitOnShiftEnter && !singleLine ? ['Shift+Enter'] : []), ...(exitOnClickOutside ? ['click outside'] : [])].join(' or ')}`);
 
   /** Enter from any client control in this textbox's parent InputFrame. */
   export async function enter() {
@@ -79,14 +87,14 @@
     }
   }
   function outsideClick(event: MouseEvent) {
-    if ($active_input_frame !== frame) return;
+    if (!exitOnClickOutside || $active_input_frame !== frame) return;
     const path = event.composedPath();
     if (path.includes(container) || path.some((node) => node instanceof Element && node.hasAttribute('data-keyflow-textbox-keep-open'))) return;
     // Capture the frame before the target runs, then let its action finish first. Opening a
     // child frame must suspend this editor; an entry click must not immediately close it.
     const revision = entryRevision;
     setTimeout(() => {
-      if (mounted && entryRevision === revision && $active_input_frame === frame) void closeEditing(false);
+      if (mounted && exitOnClickOutside && entryRevision === revision && $active_input_frame === frame) void closeEditing(false);
     }, 0);
   }
   function disabledPointerUp(event: PointerEvent) {
@@ -141,6 +149,9 @@
   });
   $effect(() => frame.static_input.register(exitToken, exitTrigger));
   $effect(() => {
+    if (singleLine && /[\r\n]/.test(value)) value = value.replace(/\r\n?|\n/g, ' ');
+  });
+  $effect(() => {
     if (active) void tick().then(() => { if ($active_input_frame === frame) focusEditor(); });
   });
   $effect(() => { if (disabled && editing) untrack(() => frame.deactivate()); });
@@ -160,18 +171,19 @@
     editor.onmarkedchange = (range) => { marked = range; void tick().then(syncBackdrop); };
     editor.oncompositionlost = () => inputMethod?.reset?.();
     const unregister = set_input_frame_handler(frame, (type, input) => {
+      if (input.source !== 'virtual') editor?.physicalKey(type, input);
       const event = { key: input.key, code: input.code ?? '', repeat: input.repeat ?? false };
       if (type === 'keydown' ? frame.static_input.keydown(event) : frame.static_input.keyup(event)) return true;
+      if (normalize_event_key(input.key) === 'enter' && (singleLine || (exitOnShiftEnter && (input.shiftKey || editor?.shiftKey)))) {
+        // Catch both phases before an input method or virtual adapter can insert a newline.
+        if (type === 'keydown') void exit();
+        return true;
+      }
       if (inputMethod && editor) {
         editor.checkComposition();
         if (inputMethod.key(type, input, editor.composition)) return true;
       }
-      if (singleLine && input.key === 'Enter') {
-        // Enter commits a single-line value instead of inserting a line break.
-        if (type === 'keydown') void exit();
-        return true;
-      }
-      if (input.source !== 'virtual') return editor?.physicalKey(type, input) ?? false;
+      if (input.source !== 'virtual') return false;
       if (type === 'keyup') editor?.virtualKey(input);
       return true;
     });
@@ -204,8 +216,14 @@
     {/if}
     <textarea bind:this={textarea} bind:value {...attributes} rows={singleLine ? 1 : rows} wrap={singleLine ? 'off' : wrap} {placeholder}
       disabled={disabled || !active} aria-label={label} aria-describedby={descriptionId}
-      oninput={(event) => { if (singleLine && /[\r\n]/.test(value)) value = value.replace(/\r?\n|\r/g, ' '); oninput?.(event); syncBackdrop(); }}></textarea>
-    <p id={descriptionId} class="editor-status" role="status">{`Exit with ${exitLabel} or click outside`}</p>
+      oninput={(event) => {
+        const target = event.currentTarget;
+        if (singleLine) target.value = target.value.replace(/\r\n?|\n/g, ' ');
+        value = target.value;
+        oninput?.(event);
+        syncBackdrop();
+      }}></textarea>
+    <p id={descriptionId} class="editor-status" role="status">{exitHint}</p>
   </section>
 </div>
 

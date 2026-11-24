@@ -29,6 +29,7 @@
   let pageCount = $state(0);
   let selections = $state(0);
   let text = $state('');
+  let exitOnClickOutside = $state(false);
   let lastKey = $state('none');
   function choose(id: string) {
     keyboards.select(id);
@@ -74,8 +75,9 @@
         </div>
       </section>
     </InputFrame>
-    <TextBox bind:value={text} enterTrigger="t" label="Keyboard text editor"
-      placeholder="Click here or press T to edit. Escape returns to the page." rows={3} />
+    <label data-keyflow-textbox-keep-open><input type="checkbox" bind:checked={exitOnClickOutside} /> Exit on outside click</label>
+    <TextBox bind:value={text} enterTrigger="t" label="Keyboard text editor" {exitOnClickOutside}
+      placeholder="Click here or press T to edit. Escape or Shift+Enter returns to the page." rows={3} />
     <details>
       <summary>Custom entry/exit trigger example</summary>
       <TextBox enterTrigger={['ctrl', 'k']} exitTrigger={['ctrl', 'enter']} label="Command text editor"

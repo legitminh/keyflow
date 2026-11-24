@@ -1,6 +1,6 @@
 <!--
   Numeric single-line TextBox. The draft text is validated when editing ends (Enter, the exit trigger,
-  an outside click, or the controller's exit()): it is parsed, clamped to [min, max], snapped to `step`, and written to
+  an opted-in outside click, or the controller's exit()): it is parsed, clamped to [min, max], snapped to `step`, and written to
   `value`; unparsable drafts revert. While editing, physical ArrowUp/ArrowDown nudge by one step.
 -->
 <script lang="ts">
@@ -10,11 +10,16 @@
   import { normalize_slider_value } from '../slider.js';
 
   let { value = $bindable(0), min = -Infinity, max = Infinity, step = 1, digits, label = 'Number', enterTrigger, exitTrigger = 'escape',
-    priority = 0, showEntry = true, disabled = false, width = '8ch', format, onchange, class: className = '' }: {
+    priority = 0, showEntry = true, disabled = false, exitOnClickOutside = false, exitOnShiftEnter = true,
+    width = '8ch', format, onchange, class: className = '' }: {
     value?: number; min?: number; max?: number; step?: number;
     /** Fraction digits shown; defaults to those of `step`. */
     digits?: number;
     label?: string; enterTrigger?: Shortcut | null; exitTrigger?: Shortcut; priority?: number; showEntry?: boolean; disabled?: boolean;
+    /** Finish and validate the draft on outside click. Default false. */
+    exitOnClickOutside?: boolean;
+    /** Finish with Shift+Enter. Default true; Enter always finishes a numeric field. */
+    exitOnShiftEnter?: boolean;
     /** CSS width of the editing field. */
     width?: string;
     /** Custom display text, e.g. `(v) => v + ' px'`. Editing always shows the bare number. */
@@ -56,6 +61,7 @@
     draft = show(next);
   }}>
   <TextBox bind:this={box} bind:value={draft} singleLine {label} {enterTrigger} {exitTrigger} {priority} {showEntry} {disabled}
+    {exitOnClickOutside} {exitOnShiftEnter}
     inputmode="decimal" spellcheck={false}
     onenter={() => { editing = true; draft = show(value); }}
     onexit={(text) => commit(text)} />

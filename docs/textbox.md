@@ -1,6 +1,6 @@
 # TextBox: an editing InputFrame
 
-`TextBox` is a multiline text input that starts as a shortcut-enabled button. Clicking it or entering its configured trigger pushes a private editing frame. The native textarea then owns text input; lower-frame controls remain disabled. Escape exits by default. Clicking or tapping outside the textbox also exits its private editing frame, keeps the text, and reactivates the parent frame, so touch and mouse users can leave without an Escape key.
+`TextBox` is a multiline text input that starts as a shortcut-enabled button. Clicking it or entering its configured trigger pushes a private editing frame. The native textarea then owns text input; lower-frame controls remain disabled. Escape and Shift+Enter exit by default. Outside clicks keep editing open unless `exitOnClickOutside` is enabled. Set `exitOnShiftEnter={false}` to let Shift+Enter insert a newline instead. These options are reactive and independent of `exitTrigger`.
 
 ```svelte
 <script lang="ts">
@@ -76,9 +76,9 @@ These methods use the same editing lifecycle as the built-in triggers. They retu
 
 ## Editing behavior
 
-TextBox renders a normal textarea without an editing toolbar. Physical typing, mouse/touch selection, copy/paste/cut, printing, native undo/redo, Tab navigation, IME composition and OS emoji input keep their browser behavior. Only the configured exit binding is intercepted. Clicking or tapping outside ends editing while preserving normal focus on the clicked control. Tab and window blur alone do not end editing.
+TextBox renders a normal textarea without an editing toolbar. Physical typing, mouse/touch selection, copy/paste/cut, printing, native undo/redo, Tab navigation, IME composition and OS emoji input keep their browser behavior. The configured exit binding and, by default, Shift+Enter are intercepted. With `exitOnClickOutside={true}`, clicking or tapping outside ends editing while preserving normal focus on the clicked control. Otherwise outside clicks leave the editing frame open. Tab and window blur alone do not end editing.
 
-Virtual characters, flick translations, Backspace/Delete, Enter, Tab, arrows and Home/End adapt to the textarea's existing selection. Virtual Enter inserts a newline; virtual Tab inserts a tab. Physical Tab retains ordinary focus navigation. Native clipboard and browser commands, including Cmd/Ctrl+C, V, X, P and Z, are never replaced by library clipboard or history handlers.
+Virtual characters, flick translations, Backspace/Delete, Enter, Tab, arrows and Home/End adapt to the textarea's existing selection. Virtual Enter inserts a newline in a multiline TextBox; Shift+Enter exits when enabled, including a virtual Shift latch or physical Shift combined with virtual Enter. Virtual Tab inserts a tab. Physical Tab retains ordinary focus navigation. Native clipboard and browser commands, including Cmd/Ctrl+C, V, X, P and Z, are never replaced by library clipboard or history handlers.
 
 Virtual horizontal movement and deletion use Unicode grapheme boundaries, preserving emoji sequences and combining characters. Virtual up/down preserve the logical character column across newline-separated lines. The textarea defaults to normal `wrap="soft"`; virtual vertical movement follows logical lines, while physical arrows use native visual-line behavior. `wrap="off"` is available when a client wants unwrapped lines.
 
@@ -86,11 +86,11 @@ Physical Shift works with virtual arrows and characters. Where a keyboard layout
 
 Virtual text insertion uses the browser's native edit command where supported to preserve native undo history, with a textarea selection-API fallback. Physical undo/redo is always left to the browser. TextBox does not access the Clipboard API or request clipboard permissions. Its virtual adapter never synthesizes trusted browser/OS shortcuts.
 
-The value is retained when exiting and reopening. A child InputFrame can temporarily mask the editor—for example, to select a different keyboard. Popping the child restores editing focus and selection. TextBox owns and disposes its private frame; clients do not manage it manually. Escape during composition remains available to the OS/browser, and the configured exit trigger resumes after composition.
+The value is retained when exiting and reopening. A child InputFrame can temporarily mask the editor—for example, to select a different keyboard. Popping the child restores editing focus and selection. TextBox owns and disposes its private frame; clients do not manage it manually. Exit shortcuts during native composition (`isComposing`) remain available to the OS/browser and resume after composition.
 
 ## Click-outside integration contract
 
-TextBox handles outside dismissal itself: it finishes client marked text, keeps `bind:value`, removes its private frame, and calls `onexit(value)` once. `NumberBox` validates and commits its draft through the same exit lifecycle. Custom exit shortcuts do not disable outside dismissal. The outside click keeps its normal action and focus; it does not restore opener focus like Escape or `exit()`. A disabled parent control dismisses editing without triggering that control.
+Outside dismissal is opt-in. Enable it with `<TextBox exitOnClickOutside />` (or the same prop on `LineTextBox` and `NumberBox`). TextBox then handles dismissal itself: it finishes client marked text, keeps `bind:value`, removes its private frame, and calls `onexit(value)` once. `NumberBox` validates and commits its draft through the same exit lifecycle. Custom exit shortcuts do not affect this option. The outside click keeps its normal action and focus; it does not restore opener focus like Escape or `exit()`. A disabled parent control dismisses editing without triggering that control.
 
 Do not add a textarea `blur` handler that pops or disposes frames, and do not reset the frame stack to close a TextBox. Focus can leave the textarea for a virtual key, Tab navigation, or a child frame while editing remains open. Use the bound `exit()` API for an explicit Finish button. Dismissal applies only when the textbox's own frame is topmost. A click that opens a child frame suspends the editor; closing that child resumes editing and selection.
 
@@ -109,7 +109,7 @@ The attribute protects clicks on the element and its descendants. Apply it only 
 
 ## Input methods
 
-Pass `inputMethod` to give a TextBox a client text input method, such as an IME or a phonetic keyboard. The method receives every physical and virtual key signal of the editing frame after the exit binding is checked. Return `true` to consume a signal (Keyflow prevents the physical default); return `false` to keep TextBox's ordinary editing for that key. Modifier shortcuts should normally return `false` so native clipboard, undo and browser commands keep working.
+Pass `inputMethod` to give a TextBox a client text input method, such as an IME or a phonetic keyboard. The method receives every physical and virtual key signal of the editing frame after enabled exit gestures are checked. Return `true` to consume a signal (Keyflow prevents the physical default); return `false` to keep TextBox's ordinary editing for that key. Modifier shortcuts should normally return `false` so native clipboard, undo and browser commands keep working.
 
 ```ts
 import type { TextInputMethod } from '@legitminh/keyflow';
@@ -159,6 +159,9 @@ Best practice: keep the method's state (the current syllable, word or mode) in t
 | `bind:value` | Edited string, initially empty. |
 | `enterTrigger` | Reactive Shortcut; `undefined` (default) assigns an automatic binding; `null` disables entry binding. |
 | `exitTrigger` | Reactive Shortcut that ends editing; default `'escape'`. |
+| `exitOnClickOutside` | Exit on an outside click/tap; default `false`. |
+| `exitOnShiftEnter` | Exit on physical or virtual Shift+Enter; default `true`. Set `false` for native newline behavior in multiline textboxes. |
+| `singleLine` | One line with Enter to exit; default `false`. Also available as `LineTextBox`. |
 | `showEntry` | Show the built-in preview/entry button; default `true`. Set `false` for custom openers. |
 | `priority` | Automatic entry-binding priority; default `0`. |
 | `label` | Accessible button/textarea label; default `'Text input'`. |
@@ -182,7 +185,7 @@ TextBox uses this narrow hook to check its exit binding before allowing native e
 
 ## Try the demo
 
-Run `pnpm demo`. On `/` (also `/stack`), click **Keyboard text editor** or input T. Type physically, tap/flick the docked keyboard, select text with a mouse, and use native clipboard/browser shortcuts. Click or tap outside the textbox, or tap Escape, to return. Expand the custom-trigger example to test primary-modifier+K entry and primary-modifier+Enter exit.
+Run `pnpm demo`. On `/` (also `/stack`), click **Keyboard text editor** or input T. Type physically, tap/flick the docked keyboard, select text with a mouse, and use native clipboard/browser shortcuts. Use Escape or Shift+Enter to return. Enable **Exit on outside click** to also leave by clicking or tapping outside. Expand the custom-trigger example to test primary-modifier+K entry and primary-modifier+Enter exit.
 
 Visit `/controls` for client-supplied openers, hover overlays, and live entry/exit binding selectors. It also demonstrates API exit, disabled editors, and a child frame that temporarily masks editing.
 
@@ -190,11 +193,17 @@ The flick-alpha Escape key replaces the former semicolon slot: tap Escape exits,
 
 ## Single-line text and numbers
 
-`singleLine` turns a TextBox into a one-line field that sits inline at one min-box of height. Enter (physical or virtual) finishes editing, and pasted line breaks become spaces. `NumberBox` builds on it: the draft is parsed when editing ends, clamped to `min`/`max`, snapped to `step`, and written to `value`. Text that doesn't parse reverts. While editing, ArrowUp/ArrowDown nudge by one step.
+`LineTextBox` is a TextBox that holds one line and sits inline at one min-box of height. Enter (physical or virtual) finishes editing before the input method can insert a newline. Pasted, programmatically assigned and API-inserted line breaks become spaces. Existing `<TextBox singleLine />` usage has the same behavior. `NumberBox` builds on it: the draft is parsed when editing ends, clamped to `min`/`max`, snapped to `step`, and written to `value`. Text that doesn't parse reverts. While editing, ArrowUp/ArrowDown nudge by one step.
 
 ```svelte
-<TextBox bind:value={name} singleLine label="Layer name" />
-<NumberBox bind:value={width} min={1} max={16384} step={1} label="Width" onchange={(v) => resize(v)} />
+<script lang="ts">
+  import { LineTextBox, NumberBox } from '@legitminh/keyflow';
+  let name = $state('');
+  let width = $state(100);
+</script>
+
+<LineTextBox bind:value={name} label="Layer name" />
+<NumberBox bind:value={width} min={1} max={16384} step={1} label="Width" />
 ```
 
-Both keep TextBox's entry and exit triggers, automatic shortcuts and `bind:this` controller (`enter()`, `exit()`). Set `--textbox-width` (or NumberBox's `width`) to size the editing field.
+`LineTextBox` accepts TextBox props except `singleLine`, `rows` and `wrap`, and exposes the same `TextBoxController` (`enter()`, `exit()`, `edit()`). Both line and numeric fields keep TextBox's entry and exit triggers, automatic shortcuts and exit options. Enter always exits single-line and numeric fields, including when `exitOnShiftEnter={false}`. Set `--textbox-width` (or NumberBox's `width`) to size the editing field.
