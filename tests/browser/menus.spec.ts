@@ -215,6 +215,7 @@ test('an overlay dropdown stacks over the page, scrolls vertically and blocks th
   await page.getByRole('button', { name: 'Language', exact: true }).click();
   const overlay = page.locator('.subkeyframe-overlay');
   await expect(overlay).toBeVisible();
+  await expect(overlay.locator('.subkeyframe-title')).toHaveText('Language');
   await expect(stack(page)).toHaveText('root → Language');
   const box = await overlay.boundingBox();
   expect(box).toMatchObject({ x: 0, y: 0, width: 390, height: 640 });

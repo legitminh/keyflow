@@ -126,6 +126,7 @@ Inline elements keep their normal layout space; reserve only UI that actually ov
 - Use it for choice lists, and for any list that may be longer than the space beside its trigger. Inline menus are for short menus only.
 - The overlay is moved to `document.body`, so page transforms, sticky headers and `overflow` on ancestors cannot clip it. It covers the whole viewport, scrolls only vertically, and wraps long labels instead of widening.
 - It is modal: clicks on the page underneath do nothing, and the parent frame stays masked until an item is chosen or Back/Escape exits. `closeOnOutside` does not apply.
+- The menu's `label` is shown as its title, since the trigger is covered.
 - Nested lists inherit the presentation.
 
 ```svelte

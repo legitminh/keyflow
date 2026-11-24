@@ -209,6 +209,7 @@
 {#snippet menu()}
   <section id={panelId} class="subkeyframe-panel" aria-label={label} tabindex="-1" bind:this={panel}>
     <Camera class="subkeyframe-viewport" worldClass="subkeyframe-world">
+{#if presentation === 'overlay'}<p class="subkeyframe-title">{label}</p>{/if}
     {#if items.length}
       <ul class="subkeyframe-items">
         {#each items as item (item.id ?? item)}
@@ -274,5 +275,6 @@
     box-sizing: border-box; overflow: hidden; background: var(--background, #fff); overscroll-behavior: contain; }
   :global(.subkeyframe-overlay > .subkeyframe-panel) { width: min(100%, 40rem); max-width: 100%; border: 0; overflow-x: hidden;
     padding: calc(var(--min-box, 48px) / 2); }
+  :global(.subkeyframe-overlay .subkeyframe-title) { margin: 0; font-weight: 700; }
   :global(.subkeyframe-overlay .subkeyframe-items button), :global(.subkeyframe-overlay .subkeyframe-back) { width: 100%; white-space: normal; overflow-wrap: anywhere; }
 </style>
