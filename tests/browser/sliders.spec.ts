@@ -61,7 +61,7 @@ test('positional multi-key controls start at terminal keydown and custom interac
   await expect(slider(page, 'Custom core')).toHaveAttribute('aria-valuenow', '50.5');
 });
 
-test('persistent sliders keep page-position shortcuts while offscreen; bounded text scrolls past its limit', async ({ page }) => {
+test('persistent sliders keep page-position shortcuts while offscreen; bounded text auto-scrolls past its limit', async ({ page }) => {
   await page.goto('/sliders');
   const increase = page.getByRole('button', { name: /Increase Horizontal persistent$/ });
   const route = (await increase.locator('.pending_route').textContent())!;
@@ -73,8 +73,21 @@ test('persistent sliders keep page-position shortcuts while offscreen; bounded t
   const title = page.locator('.keyflow-bounded-text').first();
   const metrics = await title.evaluate((node) => ({ scroll: node.scrollWidth, client: node.clientWidth, chars: parseFloat(getComputedStyle(node).maxWidth) / parseFloat(getComputedStyle(node).fontSize) }));
   expect(metrics.scroll).toBeGreaterThan(metrics.client);
-  await expect(title).toHaveAttribute('tabindex', '0');
+  // No scrollbar or scroll zone: the content scrolls itself in a loop that rests at its start.
+  expect(await title.evaluate((node) => getComputedStyle(node).overflowX)).toBe('hidden');
+  await expect(title).not.toHaveAttribute('tabindex', /.*/);
   await expect(title).toHaveAttribute('title', 'a-very-long-file-name-that-scrolls.visual');
+  await expect(title.locator('.keyflow-bounded-text-copy')).toHaveAttribute('aria-hidden', 'true');
+  const loop = await title.locator('.keyflow-bounded-text-track').evaluate((node) => {
+    const [animation] = node.getAnimations();
+    const timing = animation?.effect?.getComputedTiming();
+    const frames = (animation?.effect as KeyframeEffect | undefined)?.getKeyframes() ?? [];
+    return { iterations: timing?.iterations, playState: animation?.playState, rest: frames[1]?.offset, end: frames.at(-1)?.transform };
+  });
+  expect(loop.iterations).toBe(Infinity);
+  expect(loop.playState).toBe('running');
+  expect(loop.rest).toBeGreaterThan(0);
+  expect(loop.end).toMatch(/^translateX\(-\d/);
 });
 
 test('preset control snippets receive the core controller, snap API writes, and respect disabled gating', async ({ page }) => {

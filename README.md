@@ -171,11 +171,11 @@ The public `f(b, h, i)` / `distribute_color()` function generates unique ordered
 
 ### Bounded text
 
-`BoundedText` shows one line of text, or custom `children`, at most `limit` units wide (16 characters by default). Longer content scrolls horizontally with native scrolling, and the box becomes focusable so keyboard users can reach it. Use it for titles in dense toolbars:
+`BoundedText` shows one line of text, or custom `children`, at most `limit` units wide (16 characters by default). Longer content scrolls itself in an endless marquee loop with no scrollbar: it rests at its start for `pause` ms (1500 by default) so the beginning is clear, glides left at `speed` px/s (40 by default), and wraps seamlessly back to the start after a `gap` (`3ch` by default). Users who prefer reduced motion get the clipped text with its full value in the tooltip. Use it for titles in dense toolbars:
 
 ```svelte
 <BoundedText text={fileName} />
-<BoundedText limit={12} unit="em" label="Path"><code>{path}</code></BoundedText>
+<BoundedText limit={12} unit="em" label={path} speed={60} pause={2000}><code>{path}</code></BoundedText>
 ```
 
 `HoverButton` and `HoverButtonPositional` render custom content with the assigned key path and entered/pending progress overlaid at the top right on mouse hover or keyboard focus. The overlay takes no layout space. Their shortcuts work even when the overlay is hidden, and they share regular buttons' activation feedback and InputFrame gating. The path is excluded from the accessible name, so give the content a descriptive action label.
